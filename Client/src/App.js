@@ -9,7 +9,7 @@ import WeekleyScu from "./pages/WeekleyScu";  // Corrected import path
 import Payroll from "./pages/Payroll";        // Corrected import path
 import Shiftswap from "./pages/Shiftswap";    // Corrected import path
 import ManageHours from "./pages/ManageHours";
-
+import EmployeeRequest from "./pages/EmployeeRequest";
 function App() {
   return (
     <>
@@ -23,6 +23,8 @@ function App() {
         <Route path="/payroll" element={<Payroll />} />
         <Route path="/shiftswap" element={<Shiftswap />} />
         <Route path="/manage-hours" element={<ManageHours />} />
+        <Route path="/EmployeeRequest" element={<EmployeeRequest />} />
+
       </Routes>
     </>
   );

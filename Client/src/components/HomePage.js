@@ -6,6 +6,9 @@ import payroll from "../images/payroll.png";
 import shiftswap from "../images/shiftswap.png";
 import weekleyScu from "../images/weekleyScu.png";
 import ManageHours from "../images/ManageHours.png";
+import Employee_Request from "../images/iconapp-Photo.png";
+
+
 const HomePage = () => {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
@@ -47,7 +50,13 @@ const HomePage = () => {
               <img src={payroll} alt="Payroll" />
               </td>
             </tr>
-           
+            {user && user.job === 'Employee' && (
+              <tr>
+               <td onClick={() => handleCellClick('/EmployeeRequest')}>
+           <img src={Employee_Request} alt="EmployeeRequest" />
+           </td>
+          </tr>
+            )}
             {user && user.job === 'management' && (
               <tr>
                <td onClick={() => handleCellClick('/manage-hours')}>
