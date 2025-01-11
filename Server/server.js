@@ -6,7 +6,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// חיבור למסד הנתונים
+// Connect to MongoDB
 const db = mongojs("mongodb://localhost:27017/people");
 const people_coll = db.collection("people");
 
@@ -18,7 +18,7 @@ db.on("error", (err) => {
   console.error("Database connection error:", err);
 });
 
-// נתיב התחברות
+// Login endpoint
 app.post("/login", (req, res) => {
   const { id, password } = req.body;
 
@@ -34,29 +34,80 @@ app.post("/login", (req, res) => {
   people_coll.findOne({ _id: numericId }, (err, user) => {
     if (err) {
       console.error("❌ Database error:", err);
-      return res.status(500).send("שגיאה במסד הנתונים");
+      return res.status(500).send("Database error");
     }
 
     if (user) {
       if (user.password === password) {
         console.log(`✅ Login successful for user: ${id}`);
-        res.json({
+
+        // Only return id, name, and job if they exist in the database
+        const responseData = {
           success: true,
           id: user._id,
-          job: user.job,
-        });
+        };
+
+        if (user.name) {
+          responseData.name = user.name;
+        }
+
+        if (user.job) {
+          responseData.job = user.job;
+        }
+
+        res.json(responseData);
       } else {
         console.log(`❌ Incorrect password for user: ${id}`);
-        res.json({ success: false, message: "מספר זיהוי או סיסמה לא נכונים" });
+        res.json({ success: false, message: "Invalid ID or password" });
       }
     } else {
       console.log(`❌ User not found: ${id}`);
-      res.json({ success: false, message: "מספר זיהוי או סיסמה לא נכונים" });
+      res.json({ success: false, message: "Invalid ID or password" });
     }
   });
 });
+app.post("/EmployeeRequest", (req, res) => {
+  const { userId, selectedDays } = req.body;
 
-// הפעלת השרת
+  // Validate request data
+  if (!userId || !Array.isArray(selectedDays)) {
+    return res.status(400).send("Invalid data format");
+  }
+
+  const numericId = parseInt(userId, 10);
+  if (isNaN(numericId)) {
+    return res.status(400).send("Invalid userId format");
+  }
+
+  // Find user in the database
+  people_coll.findOne({ _id: numericId }, (err, user) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).send("Database error");
+    }
+
+    if (!user) {
+      console.log(`User with ID ${numericId} not found.`);
+      return res.status(404).send("User not found");
+    }
+
+    // Update selectedDays for the user
+    people_coll.updateOne(
+      { _id: numericId },
+      { $set: { selectedDays } },
+      (updateErr) => {
+        if (updateErr) {
+          console.error("Error during update:", updateErr);
+          return res.status(500).send("Error updating data");
+        }
+
+        console.log(`User ${userId} updated successfully with selectedDays:`, selectedDays);
+        res.status(200).send("Days updated successfully");
+      }
+    );
+  });
+});
+// Start the server
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);

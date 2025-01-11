@@ -8,24 +8,30 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      setUser(JSON.parse(userData));
+    // אם יש state שמועבר, נשתמש בו
+    if (location.state && location.state.user) {
+      setUser(location.state.user);
+    } else {
+      // אם לא, נבדוק את ה-localStorage
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        setUser(JSON.parse(userData));
+      }
     }
-  }, []);
+  }, [location.state]); // נקשיב לשינויים ב-state
 
   const handleLogout = () => {
-    localStorage.removeItem("user"); // מחיקת נתוני המשתמש מ-localStorage
-    setUser(null); // עדכון ה-state של המשתמש
-    navigate("/login"); // חזרה לעמוד ההתחברות
+    localStorage.removeItem("user");
+    setUser(null);
+    navigate("/login");
   };
 
   const handleHomePage = () => {
-    navigate("/home"); // ניווט לעמוד הבית
+    navigate("/home");
   };
 
   return (
-    location.pathname !== "/login" && ( // אם לא בעמוד ההתחברות, להציג את ה-Navbar
+    location.pathname !== "/login" && (
       <nav className="navbar">
         <button className="logout-button" onClick={handleLogout}>
           logout
@@ -34,8 +40,12 @@ const Navbar = () => {
         <div className="navbar-content">
           {user ? (
             <div className="user-info">
-              <span><strong>Name:</strong> {user.name}</span>
-              <span><strong>Job:</strong> {user.job}</span>
+              <span>
+                <strong>Name:</strong> {user.name}
+              </span>
+              <span>
+                <strong>Job:</strong> {user.job}
+              </span>
             </div>
           ) : (
             <span></span>

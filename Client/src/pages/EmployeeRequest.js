@@ -1,11 +1,24 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/EmployeeRequest.css";
 
-const EmployeeRequest = ({ userId }) => {
-  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const EmployeeRequest = () => {
+  const [userId, setUserId] = useState(null); // משתנה מצב לשמירת ה-ID של המשתמש
   const [selectedDays, setSelectedDays] = useState([]);
   const navigate = useNavigate();
+
+  // קריאת נתוני המשתמש מ-localStorage בטעינת הקומפוננטה
+  useEffect(() => {
+    const userData = JSON.parse(localStorage.getItem("user"));
+    if (userData && userData.id) {
+      setUserId(userData.id); // שמירת ה-ID במצב
+    } else {
+      console.error("User data not found in localStorage.");
+      navigate("/login"); // אם לא נמצא משתמש, להפנות לעמוד ההתחברות
+    }
+  }, [navigate]);
+
+  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
   const handleCheckboxChange = (day) => {
     setSelectedDays((prevSelectedDays) =>
@@ -16,22 +29,32 @@ const EmployeeRequest = ({ userId }) => {
   };
 
   const handleSend = async () => {
+    if (!userId) {
+      console.error("User ID is not defined.");
+      return;
+    }
+
     try {
-      const response = await fetch("http://localhost:3002/api/employee-requests", {
+      const response = await fetch("/EmployeeRequest", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ userId, selectedDays }),
+        body: JSON.stringify({
+          userId,
+          selectedDays,
+        }),
       });
 
       if (response.ok) {
-        navigate("/home"); // Redirect to home page
+        console.log("Data sent successfully.");
+        navigate("/home"); // מעבר לעמוד הבית
       } else {
-        console.error("Failed to send data to the server.");
+        const errorMessage = await response.text();
+        console.error("Server response:", errorMessage);
       }
     } catch (error) {
-      console.error("An error occurred while sending the data:", error);
+      console.error("An error occurred:", error);
     }
   };
 
@@ -53,6 +76,8 @@ const EmployeeRequest = ({ userId }) => {
               <td>
                 <input
                   type="checkbox"
+                  id={`checkbox-${day}`}
+                  name={`available-${day}`}
                   onChange={() => handleCheckboxChange(day)}
                   checked={selectedDays.includes(day)}
                 />

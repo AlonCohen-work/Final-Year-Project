@@ -29,6 +29,7 @@ const HomePage = () => {
 
   return (
     <div className="homepage">
+      
       <h1>Welcome, {user ? user.name : "Guest"}!</h1>
 
       <div className="table-container">

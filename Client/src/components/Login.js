@@ -11,22 +11,26 @@ const Login = () => {
   const handleLogin = (e) => {
     e.preventDefault();
 
+    if (isNaN(id)) {
+      alert("Please enter a valid ID.");
+      return;
+    }
+
     axios
       .post("http://localhost:3002/login", {
-        id: parseInt(id), // Convert ID to Number
+        id: parseInt(id),
         password,
       })
       .then((response) => {
         if (response.data.success) {
-          localStorage.setItem(
-            "user",
-            JSON.stringify({
-              id: response.data.id,
-              job: response.data.job,
-              name: response.data.name,
-            })
-          );
-          navigate("/home");
+          const userData = {
+            id: response.data.id,
+            job: response.data.job,
+            name: response.data.name,
+          };
+
+          localStorage.setItem("user", JSON.stringify(userData)); // שמירת נתונים ב-localStorage
+          navigate("/home", { state: { user: userData } }); // שליחת נתונים דרך state
         } else {
           alert("Invalid ID or password");
         }
