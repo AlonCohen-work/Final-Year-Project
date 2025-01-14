@@ -39,18 +39,18 @@ const HomePage = () => {
               <td onClick={() => handleCellClick('/weekleyScu')}>
                 <img src={weekleyScu} alt="Weekly Schedule" />
               </td>
-              <td onClick={() => handleCellClick('/shiftswap')}>
+              {/* <td onClick={() => handleCellClick('/shiftswap')}>
                 <img src={shiftswap} alt="Shift Swap" />
-              </td>
+              </td> */}
             </tr>
-            <tr>
+            {/* <tr>
               <td onClick={() => handleCellClick('/payroll')}>
                 <img src={payroll} alt="Payroll" />
               </td>
               <td onClick={() => handleCellClick('/shiftswap')}>
               <img src={payroll} alt="Payroll" />
               </td>
-            </tr>
+            </tr> */}
             {user && user.job === 'Employee' && (
               <tr>
                <td onClick={() => handleCellClick('/EmployeeRequest')}>
