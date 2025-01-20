@@ -1,0 +1,7 @@
+/node_modules
+pem.*
+/idea.
+Client/node_modules/public-encrypt/test/test_key.pem
+Client/node_modules/public-encrypt/test/test_rsa_privkey.pem
+
+
