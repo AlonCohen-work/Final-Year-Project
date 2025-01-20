@@ -2,7 +2,6 @@ const express = require("express");
 const mongojs = require("mongojs");
 const cors = require("cors");
 const app = express();
-const { Client } = require('pg'); // connect to PostgreSQL
 
 app.use(express.json());
 app.use(cors());
@@ -108,24 +107,6 @@ app.post("/EmployeeRequest", (req, res) => {
     );
   });
 });
-
-// define connection between dataBase and the server
-const postgresClient = new Client ({
-user:'postgres',
-host:'localhost',
-database:'hotel_scheduling',
-password:'26101977',
-port:5432,
-});
-
-// connect to the database
-postgresClient.connect()
-    .then(() => console.log('connected to PostgreSql'))
-    .catch(err => console.error('Error connecting to postgreSql' , err,stack));
-
-
-
-
 // Start the server
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {

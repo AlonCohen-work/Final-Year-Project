@@ -1,3 +1,10 @@
 # Default ignored files
 /shelf/
 /workspace.xml
+# Ignore node_modules in both Client and Server
+Client/node_modules/
+Server/node_modules/
+
+# Ignore package-lock.json in both Client and Server
+Client/package-lock.json
+Server/package-lock.json

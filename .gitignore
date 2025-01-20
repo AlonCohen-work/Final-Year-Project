@@ -4,4 +4,11 @@ pem.*
 Client/node_modules/public-encrypt/test/test_key.pem
 Client/node_modules/public-encrypt/test/test_rsa_privkey.pem
 
+# Ignore node_modules in both Client and Server
+Client/node_modules/
+Server/node_modules/
+
+# Ignore package-lock.json in both Client and Server
+Client/package-lock.json
+Server/package-lock.json
 
