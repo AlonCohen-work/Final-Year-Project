@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/HomePage.css";
 
-import payroll from "../images/payroll.png";
-import shiftswap from "../images/shiftswap.png";
+//import payroll from "../images/payroll.png";
+//import shiftswap from "../images/shiftswap.png";
 import weekleyScu from "../images/weekleyScu.png";
 import ManageHours from "../images/ManageHours.png";
 import Employee_Request from "../images/iconapp-Photo.png";

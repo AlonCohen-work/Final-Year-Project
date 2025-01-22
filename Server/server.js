@@ -2,17 +2,17 @@ const express = require("express");
 const mongojs = require("mongojs");
 const cors = require("cors");
 const app = express();
-const { Client } = require('pg'); // connect to PostgreSQL
+const { Client } = require("pg"); // connect to PostgreSQL
 
 app.use(express.json());
 app.use(cors());
 
-// Connect to MongoDB
-const db = mongojs("mongodb://localhost:27017/people");
+// Connect to MongoDB Atlas
+const db = mongojs("mongodb+srv://alon123179:23892389Aa@cluster0.arcpa.mongodb.net/people?retryWrites=true&w=majority");
 const people_coll = db.collection("people");
 
 db.on("connect", () => {
-  console.log("Connected to MongoDB");
+  console.log("Connected to MongoDB Atlas");
 });
 
 db.on("error", (err) => {
@@ -107,19 +107,20 @@ app.post("/EmployeeRequest", (req, res) => {
   });
 });
 
-// define connection between dataBase and the server
-const postgresClient = new Client ({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'hotel_scheduling',
-  password: '26101977',
+// Define connection between PostgreSQL database and the server
+const postgresClient = new Client({
+  user: "postgres",
+  host: "localhost",
+  database: "hotel_scheduling",
+  password: "26101977",
   port: 5432,
 });
 
-// connect to the database
-postgresClient.connect()
-    .then(() => console.log('connected to PostgreSql'))
-    .catch(err => console.error('Error connecting to postgreSql' , err.stack));
+// Connect to PostgreSQL
+postgresClient
+  .connect()
+  .then(() => console.log("Connected to PostgreSQL"))
+  .catch((err) => console.error("Error connecting to PostgreSQL", err.stack));
 
 // Start the server
 const PORT = process.env.PORT || 3002;
