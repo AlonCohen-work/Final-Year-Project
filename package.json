@@ -1,0 +1,13 @@
+{
+  "name": "final-year-project",
+  "version": "1.0.0",
+  "dependencies": {},
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "scripts": {
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd Server && npm start",
+    "client": "cd Client && npm start"
+  }
+}

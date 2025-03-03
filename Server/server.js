@@ -100,6 +100,7 @@ app.post("/EmployeeRequest", (req, res) => {
           return res.status(500).send("Error updating data");
         }
 
+
         console.log(`User ${userId} updated successfully with selectedDays:`, selectedDays);
         res.status(200).send("Days updated successfully");
       }
