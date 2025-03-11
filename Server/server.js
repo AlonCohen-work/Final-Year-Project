@@ -111,7 +111,7 @@ app.post("/EmployeeRequest", (req, res) => {
 // Define connection between PostgreSQL database and the server
 const postgresClient = new Client({
   user: "postgres",
-  host: "localhost",
+  host: "192.168.7.1,
   database: "hotel_scheduling",
   password: "26101977",
   port: 5432,
