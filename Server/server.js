@@ -148,4 +148,4 @@ app.get("/get-location_constraints", async(req,res)=>{
    }catch(err){
       res.status(500).json({ success: false , error:err.message  })
    }
-})
+});
