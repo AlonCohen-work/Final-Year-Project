@@ -128,3 +128,24 @@ const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
+
+// get data from postgersql table of legal consrains
+app.get("/get-legal_constraints", async(req,res)=>{
+  try{
+      const result = await postgresClient.query(" SELECT * FROM legal_constraints");
+      res.json({ success: true, data: result.rows});
+  }catch(err){
+      res.status(500).json({ success : false, error:err.message})
+  }
+
+});
+
+// get data from table of place constraints
+app.get("/get-location_constraints", async(req,res)=>{
+   try{
+       const resLocation= await postgresClient.query(" SELECT * FROM location_constraints");
+       res.json({ success : true , data: resLocation.rows });
+   }catch(err){
+      res.status(500).json({ success: false , error:err.message  })
+   }
+})
