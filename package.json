@@ -7,7 +7,7 @@
   },
   "scripts": {
     "start": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd Server && npm start",
+    "server": "cd Server && node server.js",
     "client": "cd Client && npm start"
   }
 }

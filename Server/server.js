@@ -2,7 +2,6 @@ const express = require("express");
 const mongojs = require("mongojs");
 const cors = require("cors");
 const app = express();
-const { Client } = require("pg"); // connect to PostgreSQL
 
 app.use(express.json());
 app.use(cors());
@@ -108,24 +107,27 @@ app.post("/EmployeeRequest", (req, res) => {
   });
 });
 
-// Define connection between PostgreSQL database and the server
+const { Client } = require("pg");
+require('dotenv').config();
+console.log("🔍 DATABASE_URL:", process.env.DATABASE_URL);
+
 const postgresClient = new Client({
-  user: "postgres",
-  host: "192.168.7.1,
-  database: "hotel_scheduling",
-  password: "26101977",
-  port: 5432,
+  connectionString: process.env.DATABASE_URL,
+  ssl: {   rejectUnauthorized: false
+
+ }
 });
 
-// Connect to PostgreSQL
+// חיבור ל-PostgreSQL
 postgresClient
   .connect()
-  .then(() => console.log("Connected to PostgreSQL"))
-  .catch((err) => console.error("Error connecting to PostgreSQL", err.stack));
+  .then(() => console.log("✅ Connected to PostgreSQL!"))
+  .catch((err) => console.error("❌ Error connecting to PostgreSQL", err.stack));
+
 
 // Start the server
 const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
 
@@ -140,12 +142,4 @@ app.get("/get-legal_constraints", async(req,res)=>{
 
 });
 
-// get data from table of place constraints
-app.get("/get-location_constraints", async(req,res)=>{
-   try{
-       const resLocation= await postgresClient.query(" SELECT * FROM location_constraints");
-       res.json({ success : true , data: resLocation.rows });
-   }catch(err){
-      res.status(500).json({ success: false , error:err.message  })
-   }
-});
+

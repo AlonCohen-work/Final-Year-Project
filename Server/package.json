@@ -3,16 +3,17 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
     "express": "^4.17.1",
     "mongojs": "^3.1.0",
     "mongoose": "^5.12.3",
     "pg": "^8.13.1"
   },
-  "devDependencies": {},
   "keywords": [],
   "author": "",
   "license": "ISC",

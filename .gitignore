@@ -12,3 +12,9 @@ Server/node_modules/
 Client/package-lock.json
 Server/package-lock.json
 
+
+# Ignore environment variables
+.env
+server/.env
+client/.env
+
