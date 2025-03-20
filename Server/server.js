@@ -142,4 +142,3 @@ app.get("/get-legal_constraints", async(req,res)=>{
 
 });
 
-
