@@ -1,21 +1,16 @@
+# להתעלם מתיקיית node_modules הראשית
 /node_modules
-pem.*
-/idea.
-Client/node_modules/public-encrypt/test/test_key.pem
-Client/node_modules/public-encrypt/test/test_rsa_privkey.pem
 
-# Ignore node_modules in both Client and Server
+# להתעלם מקבצי pem (קבצי מפתחות ואישורים)
+pem.*
+
+# להתעלם מתיקיית idea של IntelliJ
+/idea.
+
+# להתעלם מתיקיות node_modules בתוך צד הלקוח והשרת
 Client/node_modules/
 Server/node_modules/
 
-# Ignore package-lock.json in both Client and Server
+# להתעלם מקבצי package-lock.json של צד הלקוח והשרת
 Client/package-lock.json
 Server/package-lock.json
-
-
-# Ignore environment variables
-.env
-server/.env
-client/.env
-
-.qodo
