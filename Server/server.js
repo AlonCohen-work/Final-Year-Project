@@ -107,23 +107,6 @@ app.post("/EmployeeRequest", (req, res) => {
   });
 });
 
-const { Client } = require("pg");
-require('dotenv').config();
-console.log("🔍 DATABASE_URL:", process.env.DATABASE_URL);
-
-const postgresClient = new Client({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {   rejectUnauthorized: false
-
- }
-});
-
-// חיבור ל-PostgreSQL
-postgresClient
-  .connect()
-  .then(() => console.log("✅ Connected to PostgreSQL!"))
-  .catch((err) => console.error("❌ Error connecting to PostgreSQL", err.stack));
-
 
 // Start the server
 const PORT = process.env.PORT || 3002;
@@ -131,15 +114,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
 
-// get data from postgersql table of legal consrains
-app.get("/get-legal_constraints", async(req,res)=>{
-  try{
-      const result = await postgresClient.query(" SELECT * FROM legal_constraints");
-      res.json({ success: true, data: result.rows});
-  }catch(err){
-      res.status(500).json({ success : false, error:err.message})
-  }
-
-});
 
 
