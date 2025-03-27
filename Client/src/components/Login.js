@@ -27,6 +27,7 @@ const Login = () => {
             id: response.data.id,
             job: response.data.job,
             name: response.data.name,
+            Workplace: response.data.Workplace,
           };
 
           localStorage.setItem("user", JSON.stringify(userData)); // שמירת נתונים ב-localStorage

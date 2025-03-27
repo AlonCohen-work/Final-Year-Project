@@ -9,7 +9,9 @@ app.use(cors());
 // Connect to MongoDB Atlas
 const db = mongojs("mongodb+srv://alon123179:23892389Aa@cluster0.arcpa.mongodb.net/people?retryWrites=true&w=majority");
 const people_coll = db.collection("people");
+const Workplace_coll = db.collection("Workplace");
 
+// MongoDB Connection Events
 db.on("connect", () => {
   console.log("Connected to MongoDB Atlas");
 });
@@ -18,16 +20,19 @@ db.on("error", (err) => {
   console.error("Database connection error:", err);
 });
 
+// PostgreSQL Connection
+const { Client } = require("pg");
+require('dotenv').config();
+console.log("🔍 DATABASE_URL:", process.env.DATABASE_URL);
+
+
 // Login endpoint
 app.post("/login", (req, res) => {
   const { id, password } = req.body;
-
   console.log("📩 Received login request:", req.body);
 
   const numericId = parseInt(id);
-  if (isNaN(numericId)) {
-    return res.status(400).send("Invalid ID format");
-  }
+  if (isNaN(numericId)) return res.status(400).send("Invalid ID format");
 
   people_coll.findOne({ _id: numericId }, (err, user) => {
     if (err) {
@@ -35,49 +40,38 @@ app.post("/login", (req, res) => {
       return res.status(500).send("Database error");
     }
 
-    if (user) {
-      if (user.password === password) {
-        console.log(`✅ Login successful for user: ${id}`);
+    if (user && user.password === password) {
+      Workplace_coll.findOne({ hotelName: user.Workplace }, (hotelErr, hotelData) => {
+        if (hotelErr) {
+          console.error("❌ Error retrieving schedule:", hotelErr);
+          return res.status(500).send("Error retrieving data");
+        }
 
-        const responseData = {
+        res.json({
           success: true,
           id: user._id,
-        };
-
-        if (user.name) {
-          responseData.name = user.name;
-        }
-
-        if (user.job) {
-          responseData.job = user.job;
-        }
-
-        res.json(responseData);
-      } else {
-        console.log(`❌ Incorrect password for user: ${id}`);
-        res.json({ success: false, message: "Invalid ID or password" });
-      }
+          name: user.name,
+          job: user.job,
+          Workplace: user.Workplace,
+          schedule: hotelData ? hotelData.schedule : {}
+        });
+      });
     } else {
-      console.log(`❌ User not found: ${id}`);
+      console.log(`❌ Login failed for user: ${id}`);
       res.json({ success: false, message: "Invalid ID or password" });
     }
   });
 });
 
+// EmployeeRequest endpoint
 app.post("/EmployeeRequest", (req, res) => {
   const { userId, selectedDays } = req.body;
 
-  // Validate request data
-  if (!userId || !Array.isArray(selectedDays)) {
-    return res.status(400).send("Invalid data format");
-  }
+  if (!userId || !Array.isArray(selectedDays)) return res.status(400).send("Invalid data format");
 
   const numericId = parseInt(userId, 10);
-  if (isNaN(numericId)) {
-    return res.status(400).send("Invalid userId format");
-  }
+  if (isNaN(numericId)) return res.status(400).send("Invalid userId format");
 
-  // Find user in the database
   people_coll.findOne({ _id: numericId }, (err, user) => {
     if (err) {
       console.error("Database error:", err);
@@ -89,7 +83,6 @@ app.post("/EmployeeRequest", (req, res) => {
       return res.status(404).send("User not found");
     }
 
-    // Update selectedDays for the user
     people_coll.updateOne(
       { _id: numericId },
       { $set: { selectedDays } },
@@ -99,7 +92,6 @@ app.post("/EmployeeRequest", (req, res) => {
           return res.status(500).send("Error updating data");
         }
 
-
         console.log(`User ${userId} updated successfully with selectedDays:`, selectedDays);
         res.status(200).send("Days updated successfully");
       }
@@ -107,12 +99,32 @@ app.post("/EmployeeRequest", (req, res) => {
   });
 });
 
+app.post('/save-schedule/:hotelName', (req, res) => {
+  const hotelName = req.params.hotelName;
+  const schedule = req.body.schedule;
+
+  Workplace_coll.updateOne(
+    { hotelName },
+    { $set: { schedule } },
+    { upsert: true },
+    (err) => {
+      if (err) return res.status(500).send("Error saving data");
+      res.status(200).send("Schedule saved successfully");
+    }
+  );
+});
+
+app.get('/get-schedule/:hotelName', (req, res) => {
+  const hotelName = req.params.hotelName;
+
+  Workplace_coll.findOne({ hotelName }, (err, data) => {
+    if (err || !data) return res.status(404).send("No schedule found");
+    res.json({ schedule: data.schedule });
+  });
+});
 
 // Start the server
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
-
-
-

@@ -8,9 +8,12 @@ pem.*
 /idea.
 
 # להתעלם מתיקיות node_modules בתוך צד הלקוח והשרת
-Client/node_modules/
-Server/node_modules/
+Client/node_modules
+Server/node_modules
 
 # להתעלם מקבצי package-lock.json של צד הלקוח והשרת
 Client/package-lock.json
 Server/package-lock.json
+
+.qodo
+.env
