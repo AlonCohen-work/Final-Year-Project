@@ -40,10 +40,13 @@ const createInitialSchedule = () => {
 const ManageHours = () => {
   const navigate = useNavigate();
   const [schedule, setSchedule] = useState(createInitialSchedule());
+
   console.log("schedule:", schedule);
 
   const user = JSON.parse(localStorage.getItem("user"));
-  const hotelName = user ? user.Workplace : "";
+  const hotelName = user ? user.Workplace[0] : ""; // אם יש למנהל יותר ממלון, בחר את הראשון
+
+  console.log("User data:", user);
 
   useEffect(() => {
     if (hotelName) {

@@ -22,6 +22,33 @@ def extractPositions(workplace_data):
     return list(positions_set)    
 
    
+def printWorkplaceData():
+    # שליפת הנתונים ממונגו
+    people, positions = getData()
 
+    # הדפסת כל המידע מתוך אוסף Workplace
+    for position in positions:
+        print(f"Hotel: {position['hotelName']}")
+        
+        # עבור כל משמרת בלוח הזמנים
+        schedule = position.get('schedule', {})
+        for shift in schedule:
+            print(f"Shift: {shift}")
+            
+            # עבור כל יום בשבוע
+            for day, day_data in schedule[shift].items():
+                print(f"  Day: {day}")
+                
+                # הדפסת דרישות הנשק
+                no_weapon = day_data.get('noWeapon', 0)
+                weapon = day_data.get('weapon', 0)
+                
+                print(f"    No Weapon Required: {no_weapon}")
+                print(f"    Weapon Required: {weapon}")
+                
+        print("-" * 40)  # פס מפריד בין המלונות
+
+# הפונקציה הזו תדפיס את כל המידע הרלוונטי לעמדות
+printWorkplaceData()
 
 
