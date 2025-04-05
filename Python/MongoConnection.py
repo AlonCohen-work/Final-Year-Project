@@ -6,7 +6,11 @@ def getData():
     db = client["people"]
     people = list(db["people"].find())
     hotels = list(db["Workplace"].find())
-    return people, hotels
+    shift_supervisors = list(db["people"].find({
+    "ShiftManager": True,
+    "WeaponCertified": True,
+}))
+    return people, hotels , shift_supervisors
 
 # each position is the key 
 def extractPositions(workplace_data):
