@@ -31,6 +31,7 @@ for hotel in hotels:
                 for i in range(nums_without_weapon):
                     var_name = f"{hotel_name}_{day}_{position_name}_noWeapon_{i}"
                     variables.append(var_name)
+print("Example variables:")
+for var in variables[:8]:
+    print(f"  - {var}")
 
-print(f"Total variables: {len(variables)}")
-print("Example variables:", variables[:10]) 
