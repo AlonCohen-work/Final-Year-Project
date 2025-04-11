@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+from constraint import Problem
 mongo_client = None
 mongo_db = None
 
@@ -17,13 +18,34 @@ def connect_to_mongo():
 
 # get the data from the mongo_db accordingliy to the manager hotel 
 def getData(user_id):
-    try:   
-        result_is_manager, hotel_data = is_manager(user_id)
-        if result_is_manager:
-            return hotel_data
-        return None
+    if not mongo_db:
+        if not connect_to_mongo():
+            print("Failed to connect to MongoDB")
+            return None
+    
+    try:
+        print(f"Looking for manager with ID: {user_id}")
+        # נדפיס את כל המידע שמצאנו
+        manager = mongo_db["people"].find_one({"_id": user_id})
+        if manager:
+            print(f"Available fields: {list(manager.keys())}")  # נראה איזה שדות יש
+
+        if not manager:
+            print("No manager found")
+            return None
+
+        workplace = manager.get("Workplace")
+        print(f"Found workplace: {workplace}")
+
+        schedule = get_hotel_schedule(workplace)
+        
+        return {
+            "hotelName": workplace,
+            "schedule": schedule
+        }
+
     except Exception as e:
-        print("Error getting data")
+        print(f"Error: {e}")
         return None
 
 
@@ -64,6 +86,28 @@ def is_manager(user_id):
     except Exception as e:
         print(f"Error checking if user is manager: {e}")
         return False, None
+
+# get the workers that working in the hotel:
+def get_workers(hotelName):
+    workers = mongo_db["people"].find({"workplace": hotelName})
+    return {str(worker["_id"]): worker for worker in workers }
+
+def get_hotel_schedule(hotel_name):
+    """
+    מביא את לוח הזמנים של המלון
+    """
+    if not mongo_db:
+        if not connect_to_mongo():
+            return None
+            
+    try:
+        hotel = mongo_db["hotels"].find_one({"hotelName": hotel_name})
+        if hotel:
+            return hotel.get("schedule", {})
+        return {}
+    except Exception as e:
+        print(f"Error getting hotel schedule: {e}")
+        return {}
 
 if __name__ == "__main__":
     connect_to_mongo()  # מתחבר למונגו
