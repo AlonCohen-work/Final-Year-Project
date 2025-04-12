@@ -1,39 +1,43 @@
 from constraint import Problem
 from MongoConnection import getData, get_workers, connect_to_mongo, close_mongo_connection
 
-def run_algo(user_id):
+def run_algo(user_id):    
+    print(f"\n1. id manager : {user_id}")
     hotel_data = getData(user_id)
+    print(f"manager data: {hotel_data}")
+    
     if hotel_data is None:
-        print("Error getting data")
+        print("manager not found")
+        return
+    
+    # 2. בדיקת שם מלון
+    hotel_name = hotel_data.get('hotelName')
+    print(f"\n2. hotel name: {hotel_name}")
+    
+    # 3. בדיקת עובדים - נשמור את התוצאה לשימוש בהמשך
+    print(f"\n3. workers in hotel: {hotel_name}")
+    all_workers = get_workers(hotel_name)
+    print(f"number of workers: {len(all_workers) if all_workers else 0}")
+    
+    # 4. בדיקת schedule
+    schedule = hotel_data.get("schedule", {})
+    print(f"\n4. schedule: {schedule}")
+    if not schedule:
+        print("SCHEDULE IS EMPTY")
         return
 
-    hotel_name = hotel_data.get('hotelName')
-    
     if not hotel_name:
         print("Error: hotel name not found")
         return
 
-    print(hotel_name)
-
     days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     shifts = ['Morning', 'Afternoon', 'Evening']
 
-    # Initialize constraint problem
     problem = Problem()
     variables = []
    
-    # create a schedule for each shift position and day 
-    schedule = hotel_data.get("schedule", {})
-    for shift in shifts:
-        shift_data = schedule.get(shift, {})
-        for position_name, position_days in shift_data.items():
-            for day in days:
-                day_info = position_days.get(day, {})
-                nums_with_weapon = day_info.get('weapon', 0)
-                nums_without_weapon = day_info.get('noWeapon', 0)
-
-    # קריאה לפונקציה עם כל הפרמטרים
-    add_variables(problem, variables, schedule, hotel_name, days, shifts)
+    # קריאה לפונקציה עם כל הפרמטרים + העובדים
+    add_variables(problem, variables, schedule, hotel_name, days, shifts, all_workers)
 
     return {
         "problem": problem,
@@ -42,23 +46,19 @@ def run_algo(user_id):
         "hotel_name": hotel_name
     }
 
-# add variables for each position, each variable is a shift with a position and a day
-def add_variables(problem, variables, schedule, hotel_name, days, shifts):
+def add_variables(problem, variables, schedule, hotel_name, days, shifts, workers):
     for shift in shifts:
         shift_data = schedule.get(shift, {})
         for position_name, position_days in shift_data.items():
             for day in days:
                 variable_name = f"{position_name}_{day}_{shift}"
-                # בדיקת עובדים זמינים
-                available_workers = check_workers_for_shift(hotel_name, position_name, day, shift)
+                # בדיקת עובדים זמינים - משתמש ברשימת העובדים שכבר הבאנו
+                available_workers = check_workers_for_shift(workers, position_name, day, shift)
                 print(f"Found {len(available_workers)} available workers for {variable_name}")
-                # הוספת המשתנה
                 problem.addVariable(variable_name, available_workers)
                 variables.append(variable_name)
 
-# check for each worker if he is avaliable for the shift 
-def check_workers_for_shift(hotel_name, position_name, day, shift):
-    workers = get_workers(hotel_name)
+def check_workers_for_shift(workers, position_name, day, shift):
     available_workers = []
     
     for worker_id, worker_info in workers.items():
@@ -74,7 +74,7 @@ def check_workers_for_shift(hotel_name, position_name, day, shift):
             continue
             
         if position_name == "Security":
-            has_weapon = worker_info.get("weaponCertifified",False)
+            has_weapon = worker_info.get("weaponCertifified", False)
             if not has_weapon:
                 continue
         
