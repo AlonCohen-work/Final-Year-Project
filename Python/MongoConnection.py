@@ -121,6 +121,41 @@ def get_hotel_schedule(hotel_name):
         print(f"Error getting schedule: {e}")
         return None
 
+def check_workers_for_shift(hotel_name, position_name, day, shift):
+    workers = get_workers(hotel_name)
+    available_workers_with_weapon = []
+    available_workers_without_weapon = []
+    
+    for worker_id, worker_info in workers.items():
+        # בדיקת זמינות
+        selected_days = worker_info.get("selectedDays", [])
+        is_available = False
+        
+        for selected_day in selected_days:
+            if selected_day["day"] == day and shift in selected_day.get("shifts", []):
+                is_available = True
+                break
+        
+        if not is_available:
+            continue
+        
+        # בדיקת נשק והוספה לרשימה המתאימה
+        has_weapon = worker_info.get("weaponCertifified", False)
+        if has_weapon:
+            available_workers_with_weapon.append(worker_id)
+        else:
+            available_workers_without_weapon.append(worker_id)
+    
+    print(f"For {position_name} on {day} {shift}:")
+    print(f"Workers with weapon: {len(available_workers_with_weapon)}")
+    print(f"Workers without weapon: {len(available_workers_without_weapon)}")
+    
+    # אם זה תפקיד Security, מחזיר רק עובדים עם נשק
+    if position_name == "Security":
+        return available_workers_with_weapon
+    # אחרת מחזיר את כל העובדים הזמינים
+    return available_workers_with_weapon + available_workers_without_weapon
+
 if __name__ == "__main__":
     connect_to_mongo()  # מתחבר למונגו
     close_mongo_connection()  # סוגר את החיבור בסוף
