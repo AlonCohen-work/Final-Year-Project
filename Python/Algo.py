@@ -4,7 +4,6 @@ from MongoConnection import getData, get_workers, connect_to_mongo, close_mongo_
 def run_algo(user_id):    
     print(f"\n1. id manager : {user_id}")
     hotel_data = getData(user_id)
-    print(f"manager data: {hotel_data}")
     
     if hotel_data is None:
         print("manager not found")
@@ -12,10 +11,8 @@ def run_algo(user_id):
     
     # 2. בדיקת שם מלון
     hotel_name = hotel_data.get('hotelName')
-    print(f"\n2. hotel name: {hotel_name}")
     
     # 3. בדיקת עובדים - נשמור את התוצאה לשימוש בהמשך
-    print(f"\n3. workers in hotel: {hotel_name}")
     all_workers = get_workers(hotel_name)
     print(f"number of workers: {len(all_workers) if all_workers else 0}")
     
@@ -57,6 +54,7 @@ def add_variables(problem, variables, schedule, hotel_name, days, shifts, worker
                 print(f"Found {len(available_workers)} available workers for {variable_name}")
                 problem.addVariable(variable_name, available_workers)
                 variables.append(variable_name)
+                
 
 def check_workers_for_shift(workers, position_name, day, shift):
     available_workers = []

@@ -2,8 +2,11 @@ from pymongo import MongoClient
 from constraint import Problem
 mongo_client = None
 mongo_db = None
-
+from bson import ObjectId
 # connect to the mongo_db 
+
+
+
 def connect_to_mongo():
     global mongo_client, mongo_db
     if mongo_client is None:
@@ -57,6 +60,39 @@ def getData(user_id):
         print(f"Error: {e}")
         return None
 
+
+def getlist(user_id):
+    client = MongoClient("mongodb+srv://alon123179:23892389Aa@cluster0.arcpa.mongodb.net/?retryWrites=true&w=majority")
+
+    # מאגרי מידע
+    db = client["people"]
+    
+    # המרה ל-ObjectId אם צריך
+    if isinstance(user_id, str):
+        user_id = ObjectId(user_id)
+
+    # שליפת המנהל
+    manager = db["people"].find_one({"_id": user_id})
+    if not manager:
+        return [], [], []
+
+    manager_workplace = manager.get("Workplace")
+
+    # שליפת כל העובדים עם אותו מקום עבודה
+    people = list(db["people"].find({"Workplace": manager_workplace}))
+
+    # שליפת פרטי המלון ממסד הנתונים השני
+    hotel = list(db["Workplace"].find({"hotelName": manager_workplace}))
+
+    # סינון מנהלי משמרת עם אישור נשק
+    shift_supervisors = [
+        p for p in people if p.get("ShiftManager") and p.get("WeaponCertified")
+    ]
+    workers = db["people"].find({"Workplace": manager_workplace, "ShiftManager":False})
+
+    
+
+    return people, hotel, shift_supervisors ,workers
 
 # close the connection to the mongo_db
 def close_mongo_connection():

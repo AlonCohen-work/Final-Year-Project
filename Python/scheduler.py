@@ -1,23 +1,21 @@
 # 📁 File: scheduler_shift_supervisors.py
 
 from constraint import Problem
-from MongoConnection import getData
+from MongoConnection import getlist
 from collections import defaultdict
 from pymongo import MongoClient
 
 # הגדרות כלליות
 days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 shifts = ['Morning', 'Afternoon', 'Evening']
-max_shifts = 3  # הגבלת מספר המשמרות לעובד (אם רוצים אפשר לשנות)
 
 # שליפת נתונים ממונגו
-people, hotels, supervisors = getData()
+people, hotels, shift_supervisors = getlist(4)
 hotel = hotels[0]
 hotel_name = hotel['hotelName']
 schedule = hotel.get('schedule', {})
 
 # סינון shift supervisors של המלון הרלוונטי
-shift_supervisors = [p for p in supervisors if p.get("Workplace") == hotel_name]
 
 problem = Problem()
 variables = []
