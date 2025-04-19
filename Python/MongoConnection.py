@@ -108,21 +108,11 @@ def close_mongo_connection():
             mongo_client.close()
             mongo_client = None
             mongo_db = None
-            print("MongoDB connection closed")
         except Exception as e:
-            print("Error closing MongoDB connection")
+            return None
 
 if __name__ == "__main__":
     connect_to_mongo()
-    
-    # נשתמש במספר 4 כי זה ה-ID של המנהל במונגו
-    manager_id = 4  
+    manager_id = 4
     data = getData(manager_id)
-    if data:
-        print(f"Found manager: {data['manager']['name']}")
-        print(f"Found hotel: {data['hotel']['name']}")
-        print(f"Number of shift managers: {len(data['workers']['shift_managers'])}")
-        print(f"Number of workers with weapon: {len(data['workers']['with_weapon'])}")
-        print(f"Number of workers without weapon: {len(data['workers']['without_weapon'])}")
     close_mongo_connection()
-    

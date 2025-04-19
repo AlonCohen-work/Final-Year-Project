@@ -64,34 +64,6 @@ def run_algo(user_id):
 if __name__ == "__main__":
     manager_id = 4
     result = run_algo(manager_id)
-    if result:
-        print("\n=== Summary of Created Variables ===")
-        variables = result['variables']
-        print(f"Total variables created: {len(variables)}")
-        
-        categories = {
-            'Morning': {'weapon': 0, 'noweapon': 0},
-            'Afternoon': {'weapon': 0, 'noweapon': 0},
-            'Evening': {'weapon': 0, 'noweapon': 0}
-        }
-        #לפי קטגוריות 
-        for var_name in variables:
-            shift = variables[var_name]['shift']
-            if 'required_weapon' in variables[var_name]:
-                weapon_type = 'weapon' if variables[var_name]['required_weapon'] else 'noweapon'
-                categories[shift][weapon_type] += 1
-        #סיכום לפי משמרות
-        print("\n=== Variables by Shift ===")
-        for shift in categories:
-            print(f"\n{shift} Shift:")
-            print(f"  Workers with weapon needed: {categories[shift]['weapon']}")
-            print(f"  Workers without weapon needed: {categories[shift]['noweapon']}")
-        #סיכום העובדים שעובדים במלון עם נשק ובלי נשק
-        print("\n=== Workers Available ===")
-        workers = result['workers']
-        print(f"Total shift managers: {len(workers['shift_managers'])}")
-        print(f"Total workers with weapon: {len(workers['with_weapon'])}")
-        print(f"Total workers without weapon: {len(workers['without_weapon'])}")
 
                  
 
