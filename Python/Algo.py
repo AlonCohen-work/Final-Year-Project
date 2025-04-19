@@ -1,6 +1,4 @@
-from constraint import Problem
 from MongoConnection import getData
-
 #מביא את כל המידע ממונגו ע פי הID של המנהל 
 def run_algo(user_id):    
     data = getData(user_id)
@@ -14,9 +12,7 @@ def run_algo(user_id):
     with_weapon = data["workers"]["with_weapon"]
     without_weapon = data["workers"]["without_weapon"]
 
-    problem = Problem()
     variables = {}
-
     #לולאה שעוברת על כל המשמרות ועל כל העמודות ויוצרת משתנים עבור כל יום וכל עמדה ועבור כל 
     #עמדה עם נשק ובלי נשק 
     for shift in hotel:
@@ -57,7 +53,6 @@ def run_algo(user_id):
                         }   
 #החזרת כל המידע להמשך הבעיה כאן נוצרו רק המשתנים 
     return {
-        "problem": problem,
         "variables": variables,
         "workers": {
             "shift_managers": shift_managers,
