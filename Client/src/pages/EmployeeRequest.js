@@ -18,7 +18,7 @@ const EmployeeRequest = () => {
   }, [navigate]);
 
   const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const shiftTypes = ["Morning", "Afternoon", "Evening"];
+  const shiftTypes = ["Morning", "Afternoon","Evening"];
 
   const handleDayCheckboxChange = (day) => {
     setSelectedDays((prevSelectedDays) => {

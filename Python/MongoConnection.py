@@ -114,6 +114,7 @@ def close_mongo_connection():
 
 if __name__ == "__main__":
     connect_to_mongo()
+    
     # נשתמש במספר 4 כי זה ה-ID של המנהל במונגו
     manager_id = 4  
     data = getData(manager_id)

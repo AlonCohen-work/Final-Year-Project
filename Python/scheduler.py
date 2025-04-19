@@ -7,7 +7,7 @@ from pymongo import MongoClient
 
 # הגדרות כלליות
 days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-shifts = ['Morning', 'Evening', 'Night']
+shifts = ['Morning', 'Afternoon', 'Evening']
 
 # שליפת נתונים ממונגו
 people, hotels, shift_supervisors, workers = getlist(4)
@@ -57,7 +57,7 @@ for day in days:
 for i in range(len(days) - 1):
     today = days[i]
     next_day = days[i + 1]
-    evening_vars = [v for v in variables if variable_info[v]["day"] == today and variable_info[v]["shift"] == "night"]
+    evening_vars = [v for v in variables if variable_info[v]["day"] == today and variable_info[v]["shift"] == "Evening"]
     morning_vars = [v for v in variables if variable_info[v]["day"] == next_day and variable_info[v]["shift"] == "Morning"]
     for e in evening_vars:
         for m in morning_vars:

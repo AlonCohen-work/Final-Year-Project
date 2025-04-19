@@ -1,84 +1,102 @@
 from constraint import Problem
-from MongoConnection import getData, get_workers, connect_to_mongo, close_mongo_connection
+from MongoConnection import getData
 
+#מביא את כל המידע ממונגו ע פי הID של המנהל 
 def run_algo(user_id):    
-    print(f"\n1. id manager : {user_id}")
-    hotel_data = getData(user_id)
+    data = getData(user_id)
     
-    if hotel_data is None:
+    if data is None:
         print("manager not found")
-        return
-    
-    # 2. בדיקת שם מלון
-    hotel_name = hotel_data.get('hotelName')
-    
-    # 4. בדיקת schedule
-    schedule = hotel_data.get("schedule", {})
-
-    if not schedule:
-        print("SCHEDULE IS EMPTY")
-        return
-
-    if not hotel_name:
-        print("Error: hotel name not found")
-        return
-
-    days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-    shifts = ['Morning', 'Evening', 'Night']
+        return 
+   #שומר את המשתנים שקיבלנו במשתנים נפרדים 
+    hotel = data["hotel"]["schedule"]
+    shift_managers = data["workers"]["shift_managers"]
+    with_weapon = data["workers"]["with_weapon"]
+    without_weapon = data["workers"]["without_weapon"]
 
     problem = Problem()
-    variables = []
-   
-    # קריאה לפונקציה עם כל הפרמטרים + העובדים
-    add_variables(problem, variables, schedule, hotel_name, days, shifts, all_workers)
+    variables = {}
 
+    #לולאה שעוברת על כל המשמרות ועל כל העמודות ויוצרת משתנים עבור כל יום וכל עמדה ועבור כל 
+    #עמדה עם נשק ובלי נשק 
+    for shift in hotel:
+        for position in hotel[shift]:
+            for day in hotel[shift][position]:
+                if position == "shift supervisor":
+                    var_name = f'{shift}_{position}_{day}'
+                    variables[var_name] = {
+                        "shift": shift,
+                        "position": position,
+                        "day": day,
+                        "possible_workers": shift_managers
+                    }
+                    #במידה וה שאר העמדות ולא העמדה של המנהל משמרת 
+                else:
+                    requirements = hotel[shift][position][day]
+                    weapon_needed = requirements.get("weapon", 0)
+                    no_weapon_needed = requirements.get("noWeapon", 0)
+                    #העובדים שיש להם נשק 
+                    for i in range(weapon_needed):
+                        var_name = f"{shift}_{position}_{day}_weapon{i}"
+                        variables[var_name] = {
+                            "shift": shift,
+                            "position": position,
+                            "day": day,
+                            "required_weapon": True,
+                            "possible_workers": with_weapon
+                        }
+                      #העובדים שאין להם נשק
+                    for i in range(no_weapon_needed):
+                        var_name = f"{shift}_{position}_{day}_noweapon{i}"
+                        variables[var_name] = {
+                            "shift": shift,
+                            "position": position,
+                            "day": day,
+                            "required_weapon": False,
+                            "possible_workers": without_weapon
+                        }   
+#החזרת כל המידע להמשך הבעיה כאן נוצרו רק המשתנים 
     return {
         "problem": problem,
         "variables": variables,
-        "schedule": schedule,
-        "hotel_name": hotel_name
+        "workers": {
+            "shift_managers": shift_managers,
+            "with_weapon": with_weapon,
+            "without_weapon": without_weapon
+        }
     }
-
-def add_variables(problem, variables, schedule, hotel_name, days, shifts, workers):
-    for shift in shifts:
-        shift_data = schedule.get(shift, {})
-        for position_name, position_days in shift_data.items():
-            for day in days:
-                variable_name = f"{position_name}_{day}_{shift}"
-                # בדיקת עובדים זמינים - משתמש ברשימת העובדים שכבר הבאנו
-                available_workers = check_workers_for_shift(workers, position_name, day, shift)
-                problem.addVariable(variable_name, available_workers)
-                variables.append(variable_name)
-                
-
-def check_workers_for_shift(workers, position_name, day, shift):
-    available_workers = []
-    
-    for worker_id, worker_info in workers.items():
-        selected_days = worker_info.get("selectedDays", [])
-        is_available = False
-        
-        for selected_day in selected_days:
-            if selected_day["day"] == day and shift in selected_day.get("shifts", []):
-                is_available = True
-                break
-        
-        if not is_available:
-            continue
-            
-        if position_name == "Security":
-            has_weapon = worker_info.get("weaponCertifified", False)
-            if not has_weapon:
-                continue
-        
-        available_workers.append(worker_id)
-    
-    return available_workers
 
 if __name__ == "__main__":
     manager_id = 4
     result = run_algo(manager_id)
-
+    if result:
+        print("\n=== Summary of Created Variables ===")
+        variables = result['variables']
+        print(f"Total variables created: {len(variables)}")
+        
+        categories = {
+            'Morning': {'weapon': 0, 'noweapon': 0},
+            'Afternoon': {'weapon': 0, 'noweapon': 0},
+            'Evening': {'weapon': 0, 'noweapon': 0}
+        }
+        #לפי קטגוריות 
+        for var_name in variables:
+            shift = variables[var_name]['shift']
+            if 'required_weapon' in variables[var_name]:
+                weapon_type = 'weapon' if variables[var_name]['required_weapon'] else 'noweapon'
+                categories[shift][weapon_type] += 1
+        #סיכום לפי משמרות
+        print("\n=== Variables by Shift ===")
+        for shift in categories:
+            print(f"\n{shift} Shift:")
+            print(f"  Workers with weapon needed: {categories[shift]['weapon']}")
+            print(f"  Workers without weapon needed: {categories[shift]['noweapon']}")
+        #סיכום העובדים שעובדים במלון עם נשק ובלי נשק
+        print("\n=== Workers Available ===")
+        workers = result['workers']
+        print(f"Total shift managers: {len(workers['shift_managers'])}")
+        print(f"Total workers with weapon: {len(workers['with_weapon'])}")
+        print(f"Total workers without weapon: {len(workers['without_weapon'])}")
 
                  
 
