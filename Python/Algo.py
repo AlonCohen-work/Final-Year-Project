@@ -12,13 +12,9 @@ def run_algo(user_id):
     # 2. בדיקת שם מלון
     hotel_name = hotel_data.get('hotelName')
     
-    # 3. בדיקת עובדים - נשמור את התוצאה לשימוש בהמשך
-    all_workers = get_workers(hotel_name)
-    print(f"number of workers: {len(all_workers) if all_workers else 0}")
-    
     # 4. בדיקת schedule
     schedule = hotel_data.get("schedule", {})
-    print(f"\n4. schedule: {schedule}")
+
     if not schedule:
         print("SCHEDULE IS EMPTY")
         return
@@ -28,7 +24,7 @@ def run_algo(user_id):
         return
 
     days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-    shifts = ['Morning', 'Afternoon', 'Evening']
+    shifts = ['Morning', 'Evening', 'Night']
 
     problem = Problem()
     variables = []
@@ -51,7 +47,6 @@ def add_variables(problem, variables, schedule, hotel_name, days, shifts, worker
                 variable_name = f"{position_name}_{day}_{shift}"
                 # בדיקת עובדים זמינים - משתמש ברשימת העובדים שכבר הבאנו
                 available_workers = check_workers_for_shift(workers, position_name, day, shift)
-                print(f"Found {len(available_workers)} available workers for {variable_name}")
                 problem.addVariable(variable_name, available_workers)
                 variables.append(variable_name)
                 

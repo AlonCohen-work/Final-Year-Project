@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const shifts = ['Morning', 'Afternoon', 'Evening'];
+const shifts = ['Morning', 'Evening', 'Night'];
 const defaultPositions = ['Control', 'Patrol', 'Entrance Security', 'Shift Supervisor'];
 
 const createInitialSchedule = () => {

@@ -1,101 +1,107 @@
 from pymongo import MongoClient
-from constraint import Problem
+from bson import ObjectId
+
 mongo_client = None
 mongo_db = None
-from bson import ObjectId
-# connect to the mongo_db 
-
-
 
 def connect_to_mongo():
+    """התחברות למונגו - פעם אחת"""
     global mongo_client, mongo_db
     if mongo_client is None:
         try:
             print("Connecting to MongoDB...")
             mongo_client = MongoClient("mongodb+srv://alon123179:23892389Aa@cluster0.arcpa.mongodb.net/people?retryWrites=true&w=majority")
             mongo_db = mongo_client["people"]
-            
-            # בדיקת קולקציות
-            print("Available collections:", mongo_db.list_collection_names())
-            
-            # בדיקת תוכן הקולקציה
-            workplace_docs = list(mongo_db["workplace"].find())
-            print("Documents in workplace collection:", workplace_docs)
-            
             return True
         except Exception as e:
             print("Error connecting to MongoDB:", str(e))
             return False
+    return True
 
-# get the data from the mongo_db accordingliy to the manager hotel 
 def getData(user_id):
-    if not mongo_db:
-        if not connect_to_mongo():
-            print("Failed to connect to MongoDB")
-            return None
-    
-    try:
-        print(f"Looking for manager with ID: {user_id}")
-        manager = mongo_db["people"].find_one({"_id": user_id})
-        
-        if manager:
-            workplace = manager.get("Workplace")  
-            print(f"Found workplace: {workplace}")
-
-            if workplace:
-                schedule = get_hotel_schedule(workplace)
-                print(f"Found schedule: {schedule}")
-                
-                return {
-                    "hotelName": workplace,
-                    "schedule": schedule
-                }
-            else:
-                print("No workplace found in manager document")
-        else:
-            print("No manager found")
+    """
+    מביא את כל המידע הדרוש מהמונגו:
+    1. מידע על המנהל
+    2. מידע על המלון והאילוצים שלו
+    3. העובדים מחולקים לקטגוריות
+    """
+    if not connect_to_mongo():
         return None
+
+    try:
+        # המרת ID למספר אם הוא מגיע כמחרוזת
+        if isinstance(user_id, str):
+            try:
+                user_id = int(user_id)
+            except ValueError:
+                print("Invalid user ID format - must be a number")
+                return None
+
+        # 1. מידע על המנהל
+        manager = mongo_db["people"].find_one({"_id": user_id})
+        if not manager:
+            print(f"Manager not found with ID: {user_id}")
+            return None
+
+        # 2. מידע על המלון
+        hotel_name = manager.get("Workplace")
+        if not hotel_name:
+            print("Manager has no workplace assigned")
+            return None
+            
+        hotel = mongo_db["Workplace"].find_one({"hotelName": hotel_name})
+        if not hotel:
+            print(f"Hotel not found with name: {hotel_name}")
+            return None
+
+        # נדפיס את האילוצים שהמנהל הגדיר
+        schedule = hotel.get("schedule", {})
+        if schedule:
+            print("\nHotel Schedule (defined by manager):")
+            for shift in schedule:
+                print(f"\n{shift} shift:")
+                for position, days in schedule[shift].items():
+                    print(f"  {position}:")
+                    for day, requirements in days.items():
+                        print(f"    {day}: {requirements}")
+        else:
+            print("\nNo schedule defined for this hotel yet!")
+
+        # 3. הבאת כל העובדים של המלון
+        all_workers = list(mongo_db["people"].find({"Workplace": hotel_name}))
+        
+        # 4. חלוקת העובדים לקטגוריות
+        categorized_workers = {
+            "shift_managers": [],
+            "with_weapon": [],
+            "without_weapon": [],
+            "all_workers": all_workers
+        }
+
+        for worker in all_workers:
+            if worker.get("ShiftManager") and worker.get("WeaponCertified"):
+                categorized_workers["shift_managers"].append(worker)
+            elif worker.get("WeaponCertified"):
+                categorized_workers["with_weapon"].append(worker)
+            else:
+                categorized_workers["without_weapon"].append(worker)
+
+        return {
+            "manager": manager,
+            "hotel": {
+                "name": hotel_name,
+                "details": hotel,
+                "schedule": hotel.get("schedule", {})
+            },
+            "workers": categorized_workers
+        }
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error getting data: {e}")
         return None
 
-
-def getlist(user_id):
-    client = MongoClient("mongodb+srv://alon123179:23892389Aa@cluster0.arcpa.mongodb.net/?retryWrites=true&w=majority")
-
-    # מאגרי מידע
-    db = client["people"]
-    
-    # המרה ל-ObjectId אם צריך
-    if isinstance(user_id, str):
-        user_id = ObjectId(user_id)
-
-    # שליפת המנהל
-    manager = db["people"].find_one({"_id": user_id})
-    if not manager:
-        return [], [], []
-
-    manager_workplace = manager.get("Workplace")
-
-    # שליפת כל העובדים עם אותו מקום עבודה
-    people = list(db["people"].find({"Workplace": manager_workplace}))
-
-    # שליפת פרטי המלון ממסד הנתונים השני
-    hotel = list(db["Workplace"].find({"hotelName": manager_workplace}))
-
-    # סינון מנהלי משמרת עם אישור נשק
-    shift_supervisors = [
-        p for p in people if p.get("ShiftManager") and p.get("WeaponCertified")
-    ]
-    workers = db["people"].find({"Workplace": manager_workplace, "ShiftManager":False})
-
-    
-
-    return people, hotel, shift_supervisors ,workers
-
-# close the connection to the mongo_db
 def close_mongo_connection():
+    """סגירת החיבור למונגו"""
     global mongo_client, mongo_db
     if mongo_client:
         try:
@@ -104,95 +110,18 @@ def close_mongo_connection():
             mongo_db = None
             print("MongoDB connection closed")
         except Exception as e:
-            print("Error closing MongoDB connection")   
-
-# check if the user is manager 
-def is_manager(user_id):
-    try:
-        if mongo_client is None:
-            if not connect_to_mongo():
-                print("Could not connect to MongoDB")
-                return False, None
-                
-        user = mongo_db["people"].find_one({"_id": user_id})  
-        if not user:
-            print("User not found")
-            return False, None
-            
-        if user.get("job") == "management":
-            hotel = mongo_db["Workplace"].find_one({"hotelName": user.get("Workplace")})
-            if not hotel:
-                print("Hotel not found")
-                return False, None
-            return True, hotel
-                    
-        return False, None
-                    
-    except Exception as e:
-        print(f"Error checking if user is manager: {e}")
-        return False, None
-
-# get the workers that working in the hotel:
-def get_workers(hotelName):
-    workers = mongo_db["people"].find({"Workplace": hotelName})
-    return {str(worker["_id"]): worker for worker in workers}
-
-def get_hotel_schedule(hotel_name):
-    try:
-        print(f"\nLooking for hotel: {hotel_name}")
-        all_hotels = list(mongo_db["Workplace"].find())
-        print(f"All hotels in workplace collection: {all_hotels}")
-        
-        hotel = mongo_db["Workplace"].find_one({"hotelName": hotel_name})
-        print(f"Found hotel document: {hotel}")
-
-        if hotel:
-            schedule = hotel.get("schedule", {})
-            return schedule
-            
-        print("No hotel found")
-        return None
-
-    except Exception as e:
-        print(f"Error getting schedule: {e}")
-        return None
-
-def check_workers_for_shift(hotel_name, position_name, day, shift):
-    workers = get_workers(hotel_name)
-    available_workers_with_weapon = []
-    available_workers_without_weapon = []
-    
-    for worker_id, worker_info in workers.items():
-        # בדיקת זמינות
-        selected_days = worker_info.get("selectedDays", [])
-        is_available = False
-        
-        for selected_day in selected_days:
-            if selected_day["day"] == day and shift in selected_day.get("shifts", []):
-                is_available = True
-                break
-        
-        if not is_available:
-            continue
-        
-        # בדיקת נשק והוספה לרשימה המתאימה
-        has_weapon = worker_info.get("weaponCertifified", False)
-        if has_weapon:
-            available_workers_with_weapon.append(worker_id)
-        else:
-            available_workers_without_weapon.append(worker_id)
-    
-    print(f"For {position_name} on {day} {shift}:")
-    print(f"Workers with weapon: {len(available_workers_with_weapon)}")
-    print(f"Workers without weapon: {len(available_workers_without_weapon)}")
-    
-    # אם זה תפקיד Security, מחזיר רק עובדים עם נשק
-    if position_name == "Security":
-        return available_workers_with_weapon
-    # אחרת מחזיר את כל העובדים הזמינים
-    return available_workers_with_weapon + available_workers_without_weapon
+            print("Error closing MongoDB connection")
 
 if __name__ == "__main__":
-    connect_to_mongo()  # מתחבר למונגו
-    close_mongo_connection()  # סוגר את החיבור בסוף
+    connect_to_mongo()
+    # נשתמש במספר 4 כי זה ה-ID של המנהל במונגו
+    manager_id = 4  
+    data = getData(manager_id)
+    if data:
+        print(f"Found manager: {data['manager']['name']}")
+        print(f"Found hotel: {data['hotel']['name']}")
+        print(f"Number of shift managers: {len(data['workers']['shift_managers'])}")
+        print(f"Number of workers with weapon: {len(data['workers']['with_weapon'])}")
+        print(f"Number of workers without weapon: {len(data['workers']['without_weapon'])}")
+    close_mongo_connection()
     
