@@ -58,12 +58,24 @@ def getData(user_id):
         schedule = hotel.get("schedule", {})
         if schedule:
             print("\nHotel Schedule (defined by manager):")
+            days_of_schedule = {}
             for shift in schedule:
-                print(f"\n{shift} shift:")
-                for position, days in schedule[shift].items():
-                    print(f"  {position}:")
-                    for day, requirements in days.items():
-                        print(f"    {day}: {requirements}")
+                for position in schedule[shift]:
+                    for day, requirements in schedule[shift][position].items():
+                        if day not in days_of_schedule:
+                            days_of_schedule[day] = {}
+                        if shift not in days_of_schedule[day]:
+                            days_of_schedule[day][shift] = {}
+                        days_of_schedule[day][shift][position] = requirements
+
+            for day in sorted(days_of_schedule.keys()):
+                print (f" day : {day}")
+                for shift in ["Morning" , "Afternoon" , "Evening"]:
+                    if shift in days_of_schedule[day]:
+                        for position, requirements in days_of_schedule[day][shift].items():
+                            weapon = requirements.get("weapon", 0)
+                            noweapon = requirements.get("noweapon", 0)
+                            print(f" shift: {shift} - position: {position} - weapon: {weapon} - noweapon: {noweapon}")                   
         else:
             print("\nNo schedule defined for this hotel yet!")
 

@@ -1,12 +1,11 @@
 from constraint import Problem
 from Algo import run_algo
 
-def run_scheduler_manager(algo_result):
-    print("\n=== Data from Algo ===")
-    
+def run_scheduler_manager(algo_result):    
     # Get and print basic data
     variables = algo_result['variables']
     shift_managers = algo_result['workers']['shift_managers']
+    manager_map = {manager['_id']: manager for manager in shift_managers}
     
     print(f"Total shift managers: {len(shift_managers)}")
 
@@ -21,9 +20,12 @@ def run_scheduler_manager(algo_result):
     solution = find_manager_that_avaliable(manager_slot, shift_managers)
     
     if solution:
-        for var_name, assigned_manager in solution.items():
+        for var_name, manager_id in solution.items():
+            manager = manager_map[manager_id]
+            slot_info = manager_slot[var_name]
             print(f"filed: {var_name}")
-            print(f"manager: {assigned_manager['name']}")
+            print(f"manager: {manager['name']}")
+            print(f"shift: {slot_info['day']} - {slot_info['shift']}")
             print("---")
     else:
         print("No solution found!")
@@ -38,22 +40,16 @@ def find_manager_that_avaliable(manager_slot, shift_managers):
         for manager in shift_managers:
             for day_info in manager['selectedDays']:
                 if day_info['day'] == var_info['day'] and var_info['shift'] in day_info['shifts']:
-                    avaliable_managers.append(manager)
+                    avaliable_managers.append(manager['_id'])
                     break
 
-        problem.addVariable(var_name, avaliable_managers)  
+        problem.addVariable(var_name, avaliable_managers) 
+
+    
 
     solution = problem.getSolution()
 
-    return solution            
-
-
-
-
-    
-    
-
-    
+    return solution   
 
 if __name__ == "__main__":
     manager_id = 4
