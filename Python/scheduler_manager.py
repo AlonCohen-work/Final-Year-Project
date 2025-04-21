@@ -1,6 +1,29 @@
 from constraint import Problem
 from Algo import run_algo, available_workers
 
+def print_solution_by_day(solution, variables):
+    if solution:
+        print("\n=== Schedule By Day ===")
+        
+        # ארגון לפי ימים
+        days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        shifts = ['Morning', 'Afternoon', 'Evening']
+        
+        for day in days:
+            print(f"\nDay: {day}")
+            for shift in shifts:
+                print(f"\n  Shift: {shift}")
+                # מיון לפי משמרות ותפקידים
+                shift_assignments = [(var_name, worker_id) for var_name, worker_id in solution.items() 
+                                  if variables[var_name]['day'] == day and 
+                                  variables[var_name]['shift'] == shift]
+                
+                for var_name, worker_id in shift_assignments:
+                    position = variables[var_name]['position']
+                    print(f"    {position}: Worker {worker_id}")
+    else:
+        print("\nNo solution found!")
+
 def run_scheduler_manager(algo_result):    
     problem = Problem()
     variables = algo_result['variables']
@@ -27,19 +50,7 @@ def run_scheduler_manager(algo_result):
         problem.addVariable(var_name, possible_workers)
 
     solution = problem.getSolution()
-    
-    # הדפסת הפתרון
-    if solution:
-        print("\n=== Solution Found ===")
-        for var_name, worker_id in solution.items():
-            var_info = variables[var_name]
-            print(f"Position: {var_info['position']}")
-            print(f"Day: {var_info['day']}, Shift: {var_info['shift']}")
-            print(f"Worker ID: {worker_id}")
-            print("---")
-    else:
-        print("\nNo solution found!")
-
+    print_solution_by_day(solution, variables)
     return solution
 
 if __name__ == "__main__":

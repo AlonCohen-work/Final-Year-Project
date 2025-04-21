@@ -60,7 +60,7 @@ def run_algo(user_id):
             "without_weapon": without_weapon
         }
     }
-
+#find all workers who ia available by day
 def available_workers(workers):
     availability ={}
     for worker in workers:
@@ -106,6 +106,14 @@ def print_availability(availability):
             for worker in availability[day][shift]["without_weapon"]:
                 print(f"      - {worker['name']}")
 
+def print_workers_schedule(workers):
+    for worker in workers:
+        print(f"\n👤 {worker.get('name', 'Unknown')}")
+        for day_info in worker.get("selectedDays", []):
+            day = day_info["day"]
+            shifts = ", ".join(day_info["shifts"])
+            print(f"  📅 {day}: {shifts}")
+
 if __name__ == "__main__":
     manager_id = 4
     result = run_algo(manager_id)
@@ -115,9 +123,10 @@ if __name__ == "__main__":
                       result['workers']['without_weapon'])
         
         availability = available_workers(all_workers)
+    #    print_availability(availability)
+        print_workers_schedule(all_workers)
+        print("--------------")
         print_availability(availability)
-
-                 
 
 
 
