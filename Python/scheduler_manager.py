@@ -27,25 +27,22 @@ def print_solution_by_day(solution, variables):
 def run_scheduler_manager(algo_result):    
     problem = Problem()
     variables = algo_result['variables']
-    all_workers = (algo_result['workers']['shift_managers'] +
-                  algo_result['workers']['with_weapon'] +
-                  algo_result['workers']['without_weapon'])
+    all_workers = (algo_result['workers'])
     
-    # הפעלת הפונקציה available_workers ושמירת התוצאה במשתנה
-    availability = available_workers(all_workers)  # שינוי כאן
-    
-    # כעת אפשר להשתמש ב-availability כמילון
+    availability = available_workers(all_workers)   
+
     for var_name, var_info in variables.items():
         day = var_info['day']
         shift = var_info['shift']
         position = var_info['position']
         
-        if position == "shift supervisor":
-            possible_workers = [w['_id'] for w in availability[day][shift]["shift_manager"]]
+        if position == "Shift Supervisor":
+            possible_workers = [w['_id'] for w in availability[day][shift]["shift_managers"]]
         elif var_info.get('required_weapon', False):
             possible_workers = [w['_id'] for w in availability[day][shift]["with_weapon"]]
         else:
             possible_workers = [w['_id'] for w in availability[day][shift]["without_weapon"]]
+
         
         problem.addVariable(var_name, possible_workers)
 

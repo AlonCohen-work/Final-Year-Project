@@ -18,7 +18,7 @@ def run_algo(user_id):
     for shift in hotel:
         for position in hotel[shift]:
             for day in hotel[shift][position]:
-                if position == "shift supervisor":
+                if position == "Shift Supervisor":
                     var_name = f'{shift}_{position}_{day}'
                     variables[var_name] = {
                         "shift": shift,
@@ -38,8 +38,8 @@ def run_algo(user_id):
                             "shift": shift,
                             "position": position,
                             "day": day,
-                            "requi red_weapon": True,
-                            "possible_workers": with_weapon
+                            "required_weapon": True,
+                            "possible_workers": shift_managers + with_weapon
                         }
                       #העובדים שאין להם נשק
                     for i in range(no_weapon_needed):
@@ -49,7 +49,7 @@ def run_algo(user_id):
                             "position": position,
                             "day": day,
                             "required_weapon": False,
-                            "possible_workers": without_weapon
+                            "possible_workers": without_weapon + shift_managers + with_weapon
                         }   
 #החזרת כל המידע להמשך הבעיה כאן נוצרו רק המשתנים 
     return {
@@ -62,31 +62,35 @@ def run_algo(user_id):
     }
 #find all workers who ia available by day
 def available_workers(workers):
-    availability ={}
-    for worker in workers:
-        has_weapon = worker.get("WeaponCertified", False)
-        is_manager = worker.get("ShiftManager", False)
-
+    available_employee ={}
+    shift_managers = workers["shift_managers"]
+    with_weapon = workers["with_weapon"]
+    without_weapon = workers["without_weapon"]
+    
+    for worker_group in [shift_managers, with_weapon, without_weapon]:
+       for worker in worker_group:
         for day_info in worker.get("selectedDays", []):
             day = day_info["day"]
             for shift in day_info["shifts"]:
-                if day not in availability :
-                    availability[day] = {}
-                if shift not in availability[day]:
-                    availability[day][shift] ={
+                if day not in available_employee :
+                    available_employee[day] = {}
+                if shift not in available_employee[day]:
+                    available_employee[day][shift] ={
                         "with_weapon":[],
                         "without_weapon":[],
                         "shift_managers":[]
                     }
-                if has_weapon:
-                    availability[day][shift]["with_weapon"].append(worker)
-                    availability[day][shift]["without_weapon"].append(worker)
+                if worker in with_weapon:
+                    available_employee[day][shift]["with_weapon"].append(worker)
+                    available_employee[day][shift]["without_weapon"].append(worker)
                 else:
-                    availability[day][shift]["without_weapon"].append(worker)
+                    available_employee[day][shift]["without_weapon"].append(worker)
 
-                if is_manager:
-                    availability[day][shift]["shift_managers"].append(worker)
-    return availability                
+                if worker in shift_managers:
+                    available_employee[day][shift]["shift_managers"].append(worker)
+                    available_employee[day][shift]["with_weapon"].append(worker)
+                    available_employee[day][shift]["without_weapon"].append(worker)
+    return available_employee                
 
 def print_availability(availability):
     print("\n=== Workers Availability ===")
@@ -108,7 +112,7 @@ def print_availability(availability):
 
 def print_workers_schedule(workers):
     for worker in workers:
-        print(f"\n👤 {worker.get('name', 'Unknown')}")
+        print(f"\n {worker.get('name', 'Unknown')} the worker can work ")
         for day_info in worker.get("selectedDays", []):
             day = day_info["day"]
             shifts = ", ".join(day_info["shifts"])
@@ -122,11 +126,10 @@ if __name__ == "__main__":
                       result['workers']['with_weapon'] + 
                       result['workers']['without_weapon'])
         
-        availability = available_workers(all_workers)
-    #    print_availability(availability)
-        print_workers_schedule(all_workers)
-        print("--------------")
-        print_availability(availability)
+        availability = available_workers(result['workers'])
+       # print_workers_schedule(all_workers)
+      #  print("--------------")
+     #  print_availability(availability)
 
 
 
