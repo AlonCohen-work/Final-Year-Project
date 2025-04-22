@@ -66,9 +66,12 @@ def available_workers(workers):
     shift_managers = workers["shift_managers"]
     with_weapon = workers["with_weapon"]
     without_weapon = workers["without_weapon"]
+
+    id_to_name ={}
     
     for worker_group in [shift_managers, with_weapon, without_weapon]:
        for worker in worker_group:
+        id_to_name[worker['_id']] = worker['name']
         for day_info in worker.get("selectedDays", []):
             day = day_info["day"]
             for shift in day_info["shifts"]:
