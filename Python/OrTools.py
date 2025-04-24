@@ -11,7 +11,7 @@ def available_shift(variables, available_employee):
         if day in available_employee and shift in available_employee[day]:
             if position == 'Shift Supervisor':
                 possible_workers = available_employee[day][shift]['shift_managers']
-            elif var_info.get('required_weapon', False):
+            elif var_info.get('required_weapon', True):
                 possible_workers = (
                     available_employee[day][shift]['shift_managers'] +
                     available_employee[day][shift]['with_weapon']
@@ -28,7 +28,6 @@ def available_shift(variables, available_employee):
         var_info['possible_workers'] = possible_workers
 
     return variables
-
 #creating the variables for the algo that he can use them 
 def variables_for_shifts(variables, model):
     variablesModel = {}
