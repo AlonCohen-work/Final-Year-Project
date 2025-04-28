@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "../styles/Login.css";
+import logo from "../images/safeshift_logo.png";
 
 const Login = () => {
   const [id, setId] = useState("");
@@ -10,17 +11,15 @@ const Login = () => {
 
   const handleLogin = (e) => {
     e.preventDefault();
-
     if (isNaN(id)) {
       alert("Please enter a valid ID.");
       return;
     }
 
-    axios
-      .post("http://localhost:3002/login", {
-        id: parseInt(id),
-        password,
-      })
+    axios.post("http://localhost:3002/login", {
+      id: parseInt(id),
+      password,
+    })
       .then((response) => {
         if (response.data.success) {
           const userData = {
@@ -29,9 +28,8 @@ const Login = () => {
             name: response.data.name,
             Workplace: response.data.Workplace,
           };
-
-          localStorage.setItem("user", JSON.stringify(userData)); // שמירת נתונים ב-localStorage
-          navigate("/home", { state: { user: userData } }); // שליחת נתונים דרך state
+          localStorage.setItem("user", JSON.stringify(userData));
+          navigate("/home", { state: { user: userData } });
         } else {
           alert("Invalid ID or password");
         }
@@ -43,10 +41,16 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
-      <form className="login-form" onSubmit={handleLogin}>
-        <h2>Login Page</h2>
-        <label htmlFor="id">Id Number</label>
+    <div className="login-page">
+      <div className="logo-area bounce">
+        <img src={logo} alt="SafeShift Logo" className="logo-img" />
+        
+        <p className="logo-tagline">Workforce Shift Management Platform</p>
+      </div>
+
+      <form className="login-form bounce" onSubmit={handleLogin}>
+        <h2>Login</h2>
+        <label htmlFor="id">ID Number</label>
         <input
           type="text"
           id="id"
@@ -62,7 +66,7 @@ const Login = () => {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button type="submit">Login</button>
+        <button type="submit" className="login-button">Login</button>
       </form>
     </div>
   );

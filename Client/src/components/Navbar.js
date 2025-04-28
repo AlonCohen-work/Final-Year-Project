@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "../styles/Navbar.css";
+import logo from "../images/logo.png"; // נתיב ללוגו
 
 const Navbar = () => {
   const [user, setUser] = useState(null);
@@ -8,17 +9,15 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // אם יש state שמועבר, נשתמש בו
     if (location.state && location.state.user) {
       setUser(location.state.user);
     } else {
-      // אם לא, נבדוק את ה-localStorage
       const userData = localStorage.getItem("user");
       if (userData) {
         setUser(JSON.parse(userData));
       }
     }
-  }, [location.state]); // נקשיב לשינויים ב-state
+  }, [location.state]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -33,28 +32,23 @@ const Navbar = () => {
   return (
     location.pathname !== "/login" && (
       <nav className="navbar">
-        <button className="logout-button" onClick={handleLogout}>
-          logout
-        </button>
-
-        <div className="navbar-content">
-          {user ? (
-            <div className="user-info">
-              <span>
-                <strong>Name:</strong> {user.name}
-              </span>
-              <span>
-                <strong>Job:</strong> {user.job}
-              </span>
-            </div>
-          ) : (
-            <span></span>
+        <div className="navbar-left">
+        <img src={logo} alt="SafeShift Logo" className="navbar-logo" />
+        </div>
+        <div className="navbar-center">
+          {user && (
+            <span className="welcome-text">
+              Welcome, {user.name} ({user.job})
+            </span>
           )}
         </div>
 
         <div className="navbar-right">
           <button className="home-button" onClick={handleHomePage}>
-            home
+            Home
+          </button>
+          <button className="logout-button" onClick={handleLogout}>
+            Logout
           </button>
         </div>
       </nav>
