@@ -70,3 +70,21 @@ def variables_for_shifts(variables, model):
         variablesModel[var_name] = variablesKey
 
     return variablesModel
+
+def print_possible_workers_per_shift(variables):
+    print("\n=== Possible Workers for Each Shift ===")
+    for var_name, var_info in variables.items():
+        possible_workers = var_info['possible_workers']
+        real_workers = [w for w in possible_workers if w['_id'] > 0]  # Exclude dummies (negative IDs)
+        print(f"{var_name}: {len(real_workers)} real possible workers")
+        for worker in real_workers:
+            quals = []
+            if worker.get('ShiftManager'):
+                quals.append('Shift Manager')
+            if worker.get('WeaponCertified'):
+                quals.append('With Weapon')
+            if not worker.get('WeaponCertified'):
+                quals.append('Without Weapon')
+            print(f"  - {worker.get('name', 'Unknown')} (ID: {worker['_id']}), {'/'.join(quals)}")
+        if not real_workers:
+            print("  !! No real possible workers for this shift !!")

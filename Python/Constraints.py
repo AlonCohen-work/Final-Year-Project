@@ -1,6 +1,6 @@
 from ortools.sat.python import cp_model
 from Algo import run_algo, available_workers
-from OrTools import available_shift, variables_for_shifts
+from OrTools import available_shift, variables_for_shifts, print_possible_workers_per_shift
 
 DUMMY_ID = -1
 
@@ -198,8 +198,26 @@ if __name__ == "__main__":
     result = run_algo(manager_id)
     workers_data = result['workers']
     available_employee , id_of_worker= available_workers(workers_data)
+
+    # FLAGS FOR CONSTRAINTS
+    active_constraints = {
+        "one_shift_per_day": True,
+        "at_least_one_day_off": False,
+        "no_morning_after_evening": False,
+        "allow_partial_solution": True,
+    }
+    print("Active constraints:", [k for k, v in active_constraints.items() if v])
+
     variables = available_shift(result['variables'], available_employee, id_of_worker)
-    print("✅ Processed shifts")
+    print("[OK] Processed shifts")
+
+    # Add per-shift dummy workers for partial solution mode BEFORE building variable domains
+    dummy_ids = None
+    if active_constraints["allow_partial_solution"]:
+        dummy_ids = add_per_shift_dummies(variables, id_of_worker)
+        print(f"\nAdded per-shift dummy workers")
+
+    print_possible_workers_per_shift(variables)
     variable_model = variables_for_shifts(variables, model)
 
     # Print number of workers and variables
@@ -234,35 +252,35 @@ if __name__ == "__main__":
                     applicants.update(available_employee[day][shift][group])
                 print(f"{day} {shift}: {len(applicants)} applicants")
 
-    # FLAGS FOR CONSTRAINTS
-    active_constraints = {
-        "one_shift_per_day": True,
-        "at_least_one_day_off": True,
-        "no_morning_after_evening": True,
-        "allow_partial_solution": True,
-    }
-    print("Active constraints:", [k for k, v in active_constraints.items() if v])
+    # Print number of shifts per day and number of real workers per day
+    print("\n=== Shifts and Real Workers Per Day ===")
+    for day in days:
+        shifts_today = [var_name for var_name, var_info in variables.items() if var_info['day'] == day]
+        print(f"{day}: {len(shifts_today)} shifts")
+        # Find real workers available that day
+        real_worker_ids = set()
+        for var_name in shifts_today:
+            for w in variables[var_name]['possible_workers']:
+                if w['_id'] > 0:
+                    real_worker_ids.add(w['_id'])
+        print(f"{day}: {len(real_worker_ids)} unique real workers available")
 
-    # Add per-shift dummy workers for partial solution mode
-    dummy_ids = None
-    if active_constraints["allow_partial_solution"]:
-        dummy_ids = add_per_shift_dummies(variables, id_of_worker)
-        print(f"\nAdded per-shift dummy workers")
-
-    # Print initial variable information
-    print("\n=== Initial Variable Information ===")
+    # Print variable domains
+    print("\n=== Variable Domains (possible worker IDs for each shift) ===")
     for var_name, var_info in variables.items():
-        possible_workers = var_info['possible_workers']
-        worker_ids = [w['_id'] if isinstance(w, dict) else w for w in possible_workers]
-        print(f"{var_name}: {len(worker_ids)} possible workers (including dummy: {DUMMY_ID in worker_ids})")
+        worker_ids = [w['_id'] for w in var_info['possible_workers']]
+        print(f"{var_name}: {worker_ids}")
+        if not worker_ids:
+            print(f"  !! WARNING: No possible workers for {var_name} !!")
 
     # Apply constraints based on flags
+    real_workers = workers_data['shift_managers'] + workers_data['with_weapon'] + workers_data['without_weapon']
     if active_constraints["one_shift_per_day"]:
-        one_shift_per_day(variables, model, workers_data['shift_managers'] + workers_data['with_weapon'] + workers_data['without_weapon'], variable_model,days)
+        one_shift_per_day(variables, model, real_workers, variable_model, days)
     if active_constraints["at_least_one_day_off"]:
-        at_least_one_day_off(variables, model, workers_data['shift_managers'] + workers_data['with_weapon'] + workers_data['without_weapon'], variable_model,days)
+        at_least_one_day_off(variables, model, real_workers, variable_model, days)
     if active_constraints["no_morning_after_evening"]:
-        no_morning_after_evening(variables, model, workers_data['shift_managers'] + workers_data['with_weapon'] + workers_data['without_weapon'], variable_model,days)
+        no_morning_after_evening(variables, model, real_workers, variable_model, days)
 
     # Objective: maximize real assignments (not dummy)
     if active_constraints["allow_partial_solution"]:
