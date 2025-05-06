@@ -6,20 +6,25 @@ from OrTools import available_shift, variables_for_shifts
 def one_shift_per_day(variables, model, workers, variable_model,days):
     for worker in workers:
         worker_id = worker['_id']
+        print(f"checking constraints for worker {worker_id}")
 
         for day in days:
+            print(f"checking day {day}")
             worker_assignments = []
             for var_name, var_info in variables.items():
                 if var_info['day'] == day:
-                    possible_ids = [w['_id'] for w in var_info['possible_workers']]
+                    possible_ids =  var_info['possible_workers']
                     if worker_id in possible_ids:
                         cp_var = variable_model[var_name]
                         assigned = model.NewBoolVar(f"{var_name}_assigned_to_{worker_id}")
                         model.Add(cp_var == worker_id).OnlyEnforceIf(assigned)
                         model.Add(cp_var != worker_id).OnlyEnforceIf(assigned.Not())
+                        model.Add( cp_var == worker_id).OnlyEnforceIf(assigned)
                         worker_assignments.append(assigned)
+                        print(f"worker {worker_id} assigned to {day}")
             if worker_assignments:
                 model.Add(sum(worker_assignments) <= 1)
+                print(f" Total assignemnts for worker {worker_id} on  {day} :{len(worker_assignments)}")
 
 def at_least_one_day_off(variables, model, workers, variable_model,days):
 
@@ -174,16 +179,5 @@ if __name__ == "__main__":
     else:
         print("\n❌ didnt found solution")   
         print_missing_workers(missing)
-
-    total_shifts = len(variables)
-    total_available = sum(len(info['possible_workers']) for info in variables.values())
-
-    print(f"Total shifts: {total_shifts}")
-    print(f"Total possible assignments: {total_available}")
-
-    for var_name, info in variables.items():
-        print(f"{var_name}: day={info['day']}, shift={info['shift']}, possible_workers={len(info['possible_workers'])}")
-
-    
         
  

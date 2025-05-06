@@ -2,7 +2,7 @@ from Algo import run_algo, available_workers
 from ortools.sat.python import cp_model
 
 # information of all the workers that can work in a shift 
-def available_shift(variables, available_employee):
+def available_shift(variables, available_employee, id_to_worker):
     for var_name, var_info in variables.items():
         day = var_info['day']
         shift = var_info['shift']
@@ -10,20 +10,24 @@ def available_shift(variables, available_employee):
 
         if day in available_employee and shift in available_employee[day]:
             if position == 'Shift Supervisor':
-                possible_workers = available_employee[day][shift]['shift_managers']
+                ids = available_employee[day][shift]['shift_managers']
             elif var_info.get('required_weapon', True):
-                possible_workers = (
+                ids = (
                     available_employee[day][shift]['shift_managers'] +
                     available_employee[day][shift]['with_weapon']
                 )
             else:
-                possible_workers = (
+                ids= (
                     available_employee[day][shift]['shift_managers'] +
                     available_employee[day][shift]['with_weapon'] +
                     available_employee[day][shift]['without_weapon']
                 )
+
         else:
-            possible_workers = []
+            ids = []
+    
+        unique_ids  = set(ids)
+        possible_workers = [id_to_worker[id] for id in unique_ids]        
 
         var_info['possible_workers'] = possible_workers
 

@@ -67,11 +67,12 @@ def available_workers(workers):
     with_weapon = workers["with_weapon"]
     without_weapon = workers["without_weapon"]
 
-    id_to_name ={}
+    id_to_worker ={}
     
     for worker_group in [shift_managers, with_weapon, without_weapon]:
        for worker in worker_group:
-        id_to_name[worker['_id']] = worker['name']
+        id_to_name[worker['_id']] = worker
+        worker_id = worker['_id']
         for day_info in worker.get("selectedDays", []):
             day = day_info["day"]
             for shift in day_info["shifts"]:
@@ -84,16 +85,22 @@ def available_workers(workers):
                         "shift_managers":[]
                     }
                 if worker in with_weapon:
-                    available_employee[day][shift]["with_weapon"].append(worker)
-                    available_employee[day][shift]["without_weapon"].append(worker)
+                    if worker_id not in available_employee[day][shift]["with_weapon"]:
+                        available_employee[day][shift]["with_weapon"].append(worker['_id'])
+                    if worker_id not in available_employee[day][shift]["without_weapon"]:   
+                        available_employee[day][shift]["without_weapon"].append(worker['_id'])
                 else:
-                    available_employee[day][shift]["without_weapon"].append(worker)
+                    if worker_id not in available_employee[day][shift]["without_weapon"]:   
+                        available_employee[day][shift]["without_weapon"].append(worker['_id'])
 
                 if worker in shift_managers:
-                    available_employee[day][shift]["shift_managers"].append(worker)
-                    available_employee[day][shift]["with_weapon"].append(worker)
-                    available_employee[day][shift]["without_weapon"].append(worker)
-    return available_employee                
+                    if worker_id not in available_employee[day][shift]["shift_managers"]:   
+                       available_employee[day][shift]["shift_managers"].append(worker['_id'])
+                    if worker_id not in available_employee[day][shift]["with_weapon"]:   
+                        available_employee[day][shift]["with_weapon"].append(worker['_id'])
+                    if worker_id not in available_employee[day][shift]["without_weapon"]:   
+                        available_employee[day][shift]["without_weapon"].append(worker['_id'])
+    return available_employee, id_to_worker               
 
 def print_availability(availability):
     print("\n=== Workers Availability ===")
@@ -103,15 +110,17 @@ def print_availability(availability):
             print(f"\n  Shift: {shift}")
             print("    Shift Managers:")
             for worker in availability[day][shift]["shift_managers"]:
-                print(f"      - {worker['name']}")
+                print(f"  - {id_to_name[worker]['name']}")
+
             
             print("    Workers with weapon:")
             for worker in availability[day][shift]["with_weapon"]:
-                print(f"      - {worker['name']}")
+                print(f"  - {id_to_name[worker]['name']}")
             
             print("    Workers without weapon:")
             for worker in availability[day][shift]["without_weapon"]:
-                print(f"      - {worker['name']}")
+                print(f"  - {id_to_name[worker]['name']}")
+
 
 def print_workers_schedule(workers):
     for worker in workers:
@@ -129,10 +138,10 @@ if __name__ == "__main__":
                       result['workers']['with_weapon'] + 
                       result['workers']['without_weapon'])
         
-        availability = available_workers(result['workers'])
-       # print_workers_schedule(all_workers)
-      #  print("--------------")
-     #  print_availability(availability)
+        availability, id_to_name = available_workers(result['workers'])
+        print_workers_schedule(all_workers)
+        print("--------------")
+        print_availability(availability)
 
 
 
