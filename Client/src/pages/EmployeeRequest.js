@@ -53,7 +53,12 @@ const EmployeeRequest = () => {
 
   const handleSend = async () => {
     if (!userId) {
-      console.error("User ID is not defined.");
+      alert("User ID is not defined.");
+      return;
+    }
+
+    if (countSelectedDays() < 3) {
+      alert(" minimum of 3 shifts per worker")
       return;
     }
 
@@ -77,6 +82,7 @@ const EmployeeRequest = () => {
 
       if (response.ok) {
         console.log("Data sent successfully.");
+        alert( "great job see you on work")
         navigate("/home");
       } else {
         const errorMessage = await response.text();
@@ -87,10 +93,16 @@ const EmployeeRequest = () => {
     }
   };
 
+  const countSelectedDays = () => {
+    return selectedDays.reduce((total, day) => total + day.shifts.length,0)
+
+  }
+
   return (
     <div className="employee-request">
       <h1>Employee Request</h1>
       <p>Select the days and shifts you are available:</p>
+      <p> Note : Minimum of 3 shifts per worker </p>
       <table className="availability-table">
         <thead>
           <tr>
@@ -134,7 +146,7 @@ const EmployeeRequest = () => {
       <button
         className="send-button"
         onClick={handleSend}
-        disabled={selectedDays.length === 0}
+        disabled={ !userId }
       >
         Send
       </button>

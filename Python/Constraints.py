@@ -85,9 +85,7 @@ def no_morning_after_evening(variables, model, workers, variable_model,days):
                 for mo in morning_vars:
                     model.AddBoolOr([ev.Not(), mo.Not()])
 
-
-
-def print_solution_by_day(solver, variable_model, variables, days):
+def solution_by_day(solver, variable_model, variables, days):
     shifts = ['Morning', 'Afternoon', 'Evening']
     schedule_by_day = {day: {shift: [] for shift in shifts} for day in days}
     worker_shift_count = {}
@@ -102,19 +100,47 @@ def print_solution_by_day(solver, variable_model, variables, days):
         schedule_by_day[day][shift].append((position, var_name, worker_id))
         worker_shift_count[worker_id] = worker_shift_count.get(worker_id, 0) + 1
 
-    for day in days:
-        print(f"\n=== {day} ===")
-        for shift in shifts:
-            print(f"  → {shift}")
-            for position, var_name, worker_id in schedule_by_day[day][shift]:
-                print(f"    {position}: {worker_id}")
+    return schedule_by_day, worker_shift_count    
 
-    print("\n===Worker shift count===")
+def print_solution(schedule_by_day, worker_shift_count):
+    for day, shifts in schedule_by_day.items():
+        print(f"\n==={day}===")
+        for shift, assignments in shifts.items():
+            print(f"--{shift}--")
+            for position, var_name, worker_id in assignments:
+                print(f"{position}: {worker_id}")
+
+    print(f"\n === worker shift count ===")
     for worker_id, count in worker_shift_count.items():
-        print(f"🧍 worker id : {worker_id}: shift count : {count} ")
+            print(f"🧍 worker id : {worker_id}: shift count : {count} ")
 
+def missing_workers(schedule_by_day):
+    missing_workers = {}
+    for day, shifts in schedule_by_day.items():
+        for shift, assignments in shifts.items():
+            for assignment in assignments:
+                position, var_name, worker_id = assignment
 
-                
+                if position is None or var_name is None:
+                    if day not in missing_workers:
+                        missing_workers[day]= {}
+                    if shift not in missing_workers[day]:   
+                        missing_workers[day][shift]= [] 
+
+                    missing_workers[day][shift].append((position, var_name))       
+    return missing_workers
+
+def print_missing_workers(missing_workers):
+    if not missing_workers:
+        print(" no missing workers")
+
+    for day, shifts in missing_workers.items():
+        print(f"\n == {day} ==")
+        for shift, assignments in shifts.items():
+            print(f"--{shift}--")
+            for position, var_name in assignments:
+                print(f" missing worker for {position} : {var_name}")    
+
 if __name__ == "__main__":
     model = cp_model.CpModel()
     manager_id = 4
@@ -137,15 +163,27 @@ if __name__ == "__main__":
 
     solver = cp_model.CpSolver()
     status = solver.Solve(model)
+    schedule_by_day, worker_shift_counts = solution_by_day(solver, variable_model, variables, days)
 
+    missing = missing_workers(schedule_by_day)
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
         print("\n✅ found solution!")
-        #הדפסה בסיגנון הקודם
-        #for var_name, var in variable_model.items():
-         #   print(f"{var_name}: {solver.Value(var)}")
-        print_solution_by_day(solver, variable_model, variables, days)
+        print_solution(schedule_by_day, worker_shift_counts)
+        print_missing_workers(missing)
 
     else:
-        print("\n❌ didnt found solution")     
+        print("\n❌ didnt found solution")   
+        print_missing_workers(missing)
+
+    total_shifts = len(variables)
+    total_available = sum(len(info['possible_workers']) for info in variables.values())
+
+    print(f"Total shifts: {total_shifts}")
+    print(f"Total possible assignments: {total_available}")
+
+    for var_name, info in variables.items():
+        print(f"{var_name}: day={info['day']}, shift={info['shift']}, possible_workers={len(info['possible_workers'])}")
+
+    
         
  
