@@ -4,6 +4,10 @@ from OrTools import available_shift, variables_for_shifts, print_possible_worker
 from datetime import datetime
 from MongoConnection import connect_to_mongo, mongo_db,connect
 
+import schedule
+import time
+import argparse
+
 DUMMY_ID = -1
 
 def one_shift_per_day(variables, model, workers, variable_model, days):
@@ -243,7 +247,6 @@ def main():
                 "schedule": schedule_by_day
             }
             db = connect()
-          
             db["result"].insert_one(result_doc)
             print("🗂️ Schedule saved to MongoDB (collection: result)")
           
@@ -251,4 +254,16 @@ def main():
         print("\n❌ No solution found.")
 
 if __name__ == "__main__":
-    main()
+    # parser = argparse.ArgumentParser(description="Shift Scheduler")
+    # parser.add_argument("--mode", choices=["manual", "auto"], default="manual", help="Run mode: manual or auto")
+    # args = parser.parse_args()
+
+    # if args.mode == "manual":
+        main()
+
+    # elif args.mode == "auto":
+    #     schedule.every().saturday.at("20:30").do(main)
+    #     print("⏳ Auto mode active. Will run every Saturday at 20:30.")
+    #     while True:
+    #         schedule.run_pending()
+    #         time.sleep(60)

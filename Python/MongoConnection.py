@@ -25,6 +25,7 @@ def connect():
             print("Connecting to MongoDB...")
             mongo_client = MongoClient("mongodb+srv://alon123179:23892389Aa@cluster0.arcpa.mongodb.net/people?retryWrites=true&w=majority")
             mongo_db = mongo_client["people"]
+            
         except Exception as e:
             print("Error connecting to MongoDB:", str(e))
             return None
