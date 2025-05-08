@@ -7,48 +7,68 @@ const EmployeeRequest = () => {
   const [selectedDays, setSelectedDays] = useState([]);
   const navigate = useNavigate();
 
+  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const shiftTypes = ["Morning", "Afternoon", "Evening"];
+
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem("user"));
     if (userData && userData.id) {
       setUserId(userData.id);
+
+      // Load existing availability if exists
+      fetch(`/EmployeeRequest?userId=${userData.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && Array.isArray(data.selectedDays)) {
+            // Ensure shift values are synced
+            const cleaned = daysOfWeek.map((day) => {
+              const found = data.selectedDays.find(d => d.day.toLowerCase() === day.toLowerCase());
+              return found ? {
+                day,
+                shifts: shiftTypes.filter(shift => found.shifts.includes(shift))
+              } : null;
+            }).filter(Boolean);
+            setSelectedDays(cleaned);
+          }
+        })
+        .catch((err) => console.error("Failed to fetch existing availability:", err));
     } else {
       console.error("User data not found in localStorage.");
       navigate("/login");
     }
   }, [navigate]);
 
-  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const shiftTypes = ["Morning", "Afternoon","Evening"];
-
   const handleDayCheckboxChange = (day) => {
-    setSelectedDays((prevSelectedDays) => {
-      const updatedDays = [...prevSelectedDays];
-      const dayIndex = updatedDays.findIndex((d) => d.day === day);
-
-      if (dayIndex !== -1) {
-        updatedDays.splice(dayIndex, 1); // Remove day if exists
+    setSelectedDays((prev) => {
+      const updated = [...prev];
+      const index = updated.findIndex((d) => d.day === day);
+      if (index !== -1) {
+        updated.splice(index, 1);
       } else {
-        updatedDays.push({ day, shifts: [] }); // Add day with no shifts
+        updated.push({ day, shifts: [] });
       }
-      return updatedDays;
+      return updated;
     });
   };
 
   const handleShiftCheckboxChange = (day, shift) => {
-    setSelectedDays((prevSelectedDays) => {
-      const updatedDays = [...prevSelectedDays];
-      const dayIndex = updatedDays.findIndex((d) => d.day === day);
-
-      if (dayIndex !== -1) {
-        const shifts = updatedDays[dayIndex].shifts;
+    setSelectedDays((prev) => {
+      const updated = [...prev];
+      const index = updated.findIndex((d) => d.day === day);
+      if (index !== -1) {
+        const shifts = updated[index].shifts;
         if (shifts.includes(shift)) {
-          updatedDays[dayIndex].shifts = shifts.filter((s) => s !== shift); // Remove shift
+          updated[index].shifts = shifts.filter((s) => s !== shift);
         } else {
-          updatedDays[dayIndex].shifts.push(shift); // Add shift
+          updated[index].shifts.push(shift);
         }
       }
-      return updatedDays;
+      return updated;
     });
+  };
+
+  const countSelectedShifts = () => {
+    return selectedDays.reduce((total, day) => total + day.shifts.length, 0);
   };
 
   const handleSend = async () => {
@@ -57,52 +77,40 @@ const EmployeeRequest = () => {
       return;
     }
 
-    if (countSelectedDays() < 3) {
-      alert(" minimum of 3 shifts per worker")
+    if (countSelectedShifts() < 5) {
+      alert("Minimum of 5 shifts per worker");
       return;
     }
 
-    // Add default shifts for days without specific shifts
     const requestData = selectedDays.map((d) => ({
       day: d.day,
-      shifts: d.shifts.length > 0 ? d.shifts : shiftTypes, // Add default shifts if none selected
+      shifts: d.shifts.length > 0 ? d.shifts : shiftTypes
     }));
 
     try {
       const response = await fetch("/EmployeeRequest", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId,
-          selectedDays: requestData,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, selectedDays: requestData })
       });
 
       if (response.ok) {
-        console.log("Data sent successfully.");
-        alert( "great job see you on work")
+        alert("✅ Great job! See you on shift.");
         navigate("/home");
       } else {
         const errorMessage = await response.text();
-        console.error("Server response:", errorMessage);
+        console.error("Server error:", errorMessage);
       }
     } catch (error) {
       console.error("An error occurred:", error);
     }
   };
 
-  const countSelectedDays = () => {
-    return selectedDays.reduce((total, day) => total + day.shifts.length,0)
-
-  }
-
   return (
     <div className="employee-request">
       <h1>Employee Request</h1>
       <p>Select the days and shifts you are available:</p>
-      <p> Note : Minimum of 3 shifts per worker </p>
+      <p><strong>Note:</strong> Minimum of 5 shifts per worker</p>
       <table className="availability-table">
         <thead>
           <tr>
@@ -114,40 +122,34 @@ const EmployeeRequest = () => {
           </tr>
         </thead>
         <tbody>
-          {daysOfWeek.map((day) => (
-            <tr
-              key={day}
-              className={selectedDays.some((d) => d.day === day) ? "selected-row" : ""}
-            >
-              <td>{day}</td>
-              <td>
-                <input
-                  type="checkbox"
-                  onChange={() => handleDayCheckboxChange(day)}
-                  checked={selectedDays.some((d) => d.day === day)}
-                />
-              </td>
-              {shiftTypes.map((shift) => (
-                <td key={shift}>
+          {daysOfWeek.map((day) => {
+            const dayObj = selectedDays.find((d) => d.day === day);
+            return (
+              <tr key={day} className={dayObj ? "selected-row" : ""}>
+                <td>{day}</td>
+                <td>
                   <input
                     type="checkbox"
-                    onChange={() => handleShiftCheckboxChange(day, shift)}
-                    checked={
-                      selectedDays.find((d) => d.day === day)?.shifts.includes(shift) || false
-                    }
-                    disabled={!selectedDays.some((d) => d.day === day)}
+                    onChange={() => handleDayCheckboxChange(day)}
+                    checked={!!dayObj}
                   />
                 </td>
-              ))}
-            </tr>
-          ))}
+                {shiftTypes.map((shift) => (
+                  <td key={shift}>
+                    <input
+                      type="checkbox"
+                      onChange={() => handleShiftCheckboxChange(day, shift)}
+                      checked={dayObj?.shifts.includes(shift) || false}
+                      disabled={!dayObj}
+                    />
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
-      <button
-        className="send-button"
-        onClick={handleSend}
-        disabled={ !userId }
-      >
+      <button className="send-button" onClick={handleSend} disabled={!userId}>
         Send
       </button>
     </div>

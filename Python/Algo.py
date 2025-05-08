@@ -102,33 +102,33 @@ def available_workers(workers):
                         available_employee[day][shift]["without_weapon"].append(worker['_id'])
     return available_employee, id_to_worker               
 
-def print_availability(availability,id_to_worker):
-    print("\n=== Workers Availability ===")
-    for day in availability:
-        print(f"\nDay: {day}")
-        for shift in availability[day]:
-            print(f"\n  Shift: {shift}")
-            print("    Shift Managers:")
-            for worker in availability[day][shift]["shift_managers"]:
-                print(f"  - {id_to_worker[worker]['name']}")
+#def print_availability(availability,id_to_worker):
+ #   print("\n=== Workers Availability ===")
+  #  for day in availability:
+   #     print(f"\nDay: {day}")
+    #    for shift in availability[day]:
+     #       print(f"\n  Shift: {shift}")
+      #      print("    Shift Managers:")
+       #     for worker in availability[day][shift]["shift_managers"]:
+        #        print(f"  - {id_to_worker[worker]['name']}")
 
             
-            print("    Workers with weapon:")
-            for worker in availability[day][shift]["with_weapon"]:
-                print(f"  - {id_to_worker[worker]['name']}")
+         #   print("    Workers with weapon:")
+          #  for worker in availability[day][shift]["with_weapon"]:
+           #     print(f"  - {id_to_worker[worker]['name']}")
             
-            print("    Workers without weapon:")
-            for worker in availability[day][shift]["without_weapon"]:
-                print(f"  - {id_to_worker[worker]['name']}")
+            #print("    Workers without weapon:")
+            #for worker in availability[day][shift]["without_weapon"]:
+             #   print(f"  - {id_to_worker[worker]['name']}")
 
 
-def print_workers_schedule(workers):
-    for worker in workers:
-        print(f"\n {worker.get('name', 'Unknown')} the worker can work ")
-        for day_info in worker.get("selectedDays", []):
-            day = day_info["day"]
-            shifts = ", ".join(day_info["shifts"])
-            print(f"  📅 {day}: {shifts}")
+#def print_workers_schedule(workers):
+ #   for worker in workers:
+  #      print(f"\n {worker.get('name', 'Unknown')} the worker can work ")
+   #     for day_info in worker.get("selectedDays", []):
+    #        day = day_info["day"]
+     #       shifts = ", ".join(day_info["shifts"])
+      #      print(f"  📅 {day}: {shifts}")
 
 if __name__ == "__main__":
     manager_id = 4
@@ -139,9 +139,9 @@ if __name__ == "__main__":
                       result['workers']['without_weapon'])
         
         availability, id_to_name = available_workers(result['workers'])
-        print_workers_schedule(all_workers)
-        print("--------------")
-        print_availability(availability)
+        #print_workers_schedule(all_workers)
+        #print("--------------")
+        #print_availability(availability)
 
 
 

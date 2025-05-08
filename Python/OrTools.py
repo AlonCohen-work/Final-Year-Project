@@ -39,17 +39,17 @@ def available_shift(variables, available_employee, id_to_worker):
             # Convert IDs to worker objects
             possible_workers = [id_to_worker[worker_id] for worker_id in worker_ids]
             
-            print(f"\nFor {day} {shift} {position}:")
-            print(f"Found {len(possible_workers)} possible workers:")
-            for worker in possible_workers:
-                print(f"- {worker.get('name', 'Unknown')} (ID: {worker['_id']})")
-                # Print worker's qualifications
-                if worker['_id'] in available_employee[day][shift]['shift_managers']:
-                    print("  * Can be shift manager")
-                if worker['_id'] in available_employee[day][shift]['with_weapon']:
-                    print("  * Can work with weapon")
-                if worker['_id'] in available_employee[day][shift]['without_weapon']:
-                    print("  * Can work without weapon")
+            # print(f"\nFor {day} {shift} {position}:")
+            # print(f"Found {len(possible_workers)} possible workers:")
+            # for worker in possible_workers:
+            #     print(f"- {worker.get('name', 'Unknown')} (ID: {worker['_id']})")
+            #     # Print worker's qualifications
+            #     if worker['_id'] in available_employee[day][shift]['shift_managers']:
+            #         print("  * Can be shift manager")
+            #     if worker['_id'] in available_employee[day][shift]['with_weapon']:
+            #         print("  * Can work with weapon")
+            #     if worker['_id'] in available_employee[day][shift]['without_weapon']:
+            #         print("  * Can work without weapon")
         
         var_info['possible_workers'] = possible_workers
         
@@ -73,18 +73,18 @@ def variables_for_shifts(variables, model):
 
 def print_possible_workers_per_shift(variables):
     print("\n=== Possible Workers for Each Shift ===")
-    for var_name, var_info in variables.items():
-        possible_workers = var_info['possible_workers']
-        real_workers = [w for w in possible_workers if w['_id'] > 0]  # Exclude dummies (negative IDs)
-        print(f"{var_name}: {len(real_workers)} real possible workers")
-        for worker in real_workers:
-            quals = []
-            if worker.get('ShiftManager'):
-                quals.append('Shift Manager')
-            if worker.get('WeaponCertified'):
-                quals.append('With Weapon')
-            if not worker.get('WeaponCertified'):
-                quals.append('Without Weapon')
-            print(f"  - {worker.get('name', 'Unknown')} (ID: {worker['_id']}), {'/'.join(quals)}")
-        if not real_workers:
-            print("  !! No real possible workers for this shift !!")
+    # for var_name, var_info in variables.items():
+    #     possible_workers = var_info['possible_workers']
+    #     real_workers = [w for w in possible_workers if w['_id'] > 0]  # Exclude dummies (negative IDs)
+    #     print(f"{var_name}: {len(real_workers)} real possible workers")
+    #     for worker in real_workers:
+    #         quals = []
+    #         if worker.get('ShiftManager'):
+    #             quals.append('Shift Manager')
+    #         if worker.get('WeaponCertified'):
+    #             quals.append('With Weapon')
+    #         if not worker.get('WeaponCertified'):
+    #             quals.append('Without Weapon')
+    #         print(f"  - {worker.get('name', 'Unknown')} (ID: {worker['_id']}), {'/'.join(quals)}")
+    #     if not real_workers:
+    #         print("  !! No real possible workers for this shift !!")

@@ -101,6 +101,28 @@ app.post("/EmployeeRequest", (req, res) => {
     );
   });
 });
+// GET availability for a user
+app.get("/EmployeeRequest", (req, res) => {
+  const userId = parseInt(req.query.userId);
+  if (isNaN(userId)) {
+    return res.status(400).send("Invalid userId format");
+  }
+
+  people_coll.findOne({ _id: userId }, (err, user) => {
+    if (err) {
+      console.error("❌ Error fetching user:", err);
+      return res.status(500).send("Database error");
+    }
+
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+
+    const selectedDays = user.selectedDays || [];
+    res.json({ selectedDays });
+  });
+});
+
 
 app.post("/save-schedule/:hotelName", (req, res) => {
   const hotelName = req.params.hotelName;
