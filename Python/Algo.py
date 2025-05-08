@@ -58,7 +58,10 @@ def run_algo(user_id):
             "shift_managers": shift_managers,
             "with_weapon": with_weapon,
             "without_weapon": without_weapon
-        }
+        },
+        "hotel": {
+        "name": data["hotel"]["name"]
+    }
     }
 #find all workers who ia available by day
 def available_workers(workers):

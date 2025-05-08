@@ -1,6 +1,8 @@
 from ortools.sat.python import cp_model
 from Algo import run_algo, available_workers
 from OrTools import available_shift, variables_for_shifts, print_possible_workers_per_shift
+from datetime import datetime
+from MongoConnection import connect_to_mongo, mongo_db,connect
 
 DUMMY_ID = -1
 
@@ -117,7 +119,11 @@ def solution_by_day(solver, variable_model, variables, days):
         shift = info['shift']
         position = info['position']
         worker_id = solver.Value(var)
-        schedule_by_day[day][shift].append((position, var_name, worker_id))
+        schedule_by_day[day][shift].append({
+            "position": position,
+            "var_name": var_name,
+            "worker_id": worker_id
+        })
         worker_shift_count[worker_id] = worker_shift_count.get(worker_id, 0) + 1
     return schedule_by_day, worker_shift_count
 
@@ -199,18 +205,22 @@ def main():
 
     result = run_algo(manager_id)
     workers_data = result['workers']
-    available_employee , id_to_worker = available_workers(workers_data)
+    available_employee, id_to_worker = available_workers(workers_data)
 
     variables = available_shift(result['variables'], available_employee, id_to_worker)
     dummy_ids = add_per_shift_dummies(variables, id_to_worker)
     variable_model = variables_for_shifts(variables, model)
 
-    real_workers = workers_data['shift_managers'] + workers_data['with_weapon'] + workers_data['without_weapon']
+    real_workers = (
+        workers_data['shift_managers'] +
+        workers_data['with_weapon'] +
+        workers_data['without_weapon']
+    )
+
     one_shift_per_day(variables, model, real_workers, variable_model, days)
     at_least_one_day_off(variables, model, real_workers, variable_model, days)
     no_morning_after_evening(variables, model, real_workers, variable_model, days)
     fairness_constraint(variables, model, real_workers, variable_model)
-
     minimize_dummy_usage(model, variable_model, dummy_ids)
 
     solver = cp_model.CpSolver()
@@ -219,14 +229,26 @@ def main():
 
     status = solver.Solve(model)
 
-    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+    if status in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
         print("\n✅ Solution found!")
         schedule_by_day, worker_shift_counts = solution_by_day(solver, variable_model, variables, days)
         print_solution(schedule_by_day)
         evaluate_solution_type(solver, variable_model, variables, real_workers, dummy_ids)
 
+        # 🔄 שמירה למונגו
+        if connect_to_mongo():
+            result_doc = {
+                "hotelName": result["hotel"]["name"],
+                "generatedAt": datetime.now(),
+                "schedule": schedule_by_day
+            }
+            db = connect()
+          
+            db["result"].insert_one(result_doc)
+            print("🗂️ Schedule saved to MongoDB (collection: result)")
+          
     else:
         print("\n❌ No solution found.")
 
 if __name__ == "__main__":
-    main() 
+    main()

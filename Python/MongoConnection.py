@@ -17,6 +17,19 @@ def connect_to_mongo():
             print("Error connecting to MongoDB:", str(e))
             return False
     return True
+def connect():
+    """התחברות למונגו - פעם אחת"""
+    global mongo_client, mongo_db
+    if mongo_client is None:
+        try:
+            print("Connecting to MongoDB...")
+            mongo_client = MongoClient("mongodb+srv://alon123179:23892389Aa@cluster0.arcpa.mongodb.net/people?retryWrites=true&w=majority")
+            mongo_db = mongo_client["people"]
+        except Exception as e:
+            print("Error connecting to MongoDB:", str(e))
+            return None
+    return mongo_db  # ✅ מחזיר את אובייקט המסד
+
 
 def getData(user_id):
     """
