@@ -10,33 +10,33 @@ const EmployeeRequest = () => {
   const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const shiftTypes = ["Morning", "Afternoon", "Evening"];
 
-  useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem("user"));
-    if (userData && userData.id) {
-      setUserId(userData.id);
+// eslint-disable-next-line react-hooks/exhaustive-deps
+useEffect(() => {
+  const userData = JSON.parse(localStorage.getItem("user"));
+  if (userData && userData.id) {
+    setUserId(userData.id);
 
-      // Load existing availability if exists
-      fetch(`/EmployeeRequest?userId=${userData.id}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && Array.isArray(data.selectedDays)) {
-            // Ensure shift values are synced
-            const cleaned = daysOfWeek.map((day) => {
-              const found = data.selectedDays.find(d => d.day.toLowerCase() === day.toLowerCase());
-              return found ? {
-                day,
-                shifts: shiftTypes.filter(shift => found.shifts.includes(shift))
-              } : null;
-            }).filter(Boolean);
-            setSelectedDays(cleaned);
-          }
-        })
-        .catch((err) => console.error("Failed to fetch existing availability:", err));
-    } else {
-      console.error("User data not found in localStorage.");
-      navigate("/login");
-    }
-  }, [navigate]);
+    fetch(`/EmployeeRequest?userId=${userData.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && Array.isArray(data.selectedDays)) {
+          const cleaned = daysOfWeek.map((day) => {
+            const found = data.selectedDays.find(d => d.day.toLowerCase() === day.toLowerCase());
+            return found ? {
+              day,
+              shifts: shiftTypes.filter(shift => found.shifts.includes(shift))
+            } : null;
+          }).filter(Boolean);
+          setSelectedDays(cleaned);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch existing availability:", err));
+  } else {
+    console.error("User data not found in localStorage.");
+    navigate("/login");
+  }
+}, [navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const handleDayCheckboxChange = (day) => {
     setSelectedDays((prev) => {

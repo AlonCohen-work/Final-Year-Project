@@ -123,6 +123,18 @@ app.get("/EmployeeRequest", (req, res) => {
   });
 });
 
+app.get("/get-latest-result/:hotelName", (req, res) => {
+  const hotelName = req.params.hotelName;
+
+  db.collection("result")
+    .find({ hotelName })
+    .sort({ generatedAt: -1 })
+    .limit(1)
+    .toArray((err, results) => {
+      if (err || !results.length) return res.status(404).send("No result found");
+      res.json(results[0]);
+    });
+});
 
 app.post("/save-schedule/:hotelName", (req, res) => {
   const hotelName = req.params.hotelName;

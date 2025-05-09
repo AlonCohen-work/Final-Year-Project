@@ -25,6 +25,18 @@ body {
   justify-content: center;
   width: 100%;
 }
+.warning-banner {
+  background-color: #fff3cd;
+  border: 1px solid #ffa500;
+  color: #856404;
+  padding: 10px;
+  margin: 15px auto;
+  border-radius: 6px;
+  width: 85%;
+  text-align: center;
+  font-weight: 500;
+  font-size: 16px;
+}
 
 .custom-table {
   border-collapse: collapse;
