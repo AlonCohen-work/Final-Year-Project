@@ -188,7 +188,7 @@ def evaluate_solution_type(solver, variable_model, variables, real_workers, dumm
 
         if var_name in dummy_ids and worker_id == dummy_ids[var_name]:
             dummy_count += 1
-
+    
     print("\n📊 Solution Evaluation")
     print(f"Total shifts: {total_shifts}")
     print(f"Dummy assignments: {dummy_count}")
@@ -240,16 +240,33 @@ def main():
         evaluate_solution_type(solver, variable_model, variables, real_workers, dummy_ids)
 
         # 🔄 שמירה למונגו
+                # 🔄 שמירה למונגו
         if connect_to_mongo():
+            # ניתוח אם הפתרון חלקי ואילו משמרות בעייתיות
+            partial_notes = []
+            for day, shifts in schedule_by_day.items():
+                for shift, assignments in shifts.items():
+                    for assignment in assignments:
+                        var_name = assignment['var_name']
+                        assigned_id = assignment['worker_id']
+                        if var_name in dummy_ids and assigned_id == dummy_ids[var_name]:
+                            partial_notes.append(f"{day} {shift} - {assignment['position']}")
+
+            status_label = "partial" if partial_notes else "full"
+            issues = ", ".join(partial_notes) if partial_notes else "All shifts filled"
+
             result_doc = {
                 "hotelName": result["hotel"]["name"],
                 "generatedAt": datetime.now(),
-                "schedule": schedule_by_day
+                "schedule": schedule_by_day,
+                "status": status_label,
+                "notes": issues
             }
+
             db = connect()
             db["result"].insert_one(result_doc)
             print("🗂️ Schedule saved to MongoDB (collection: result)")
-          
+
     else:
         print("\n❌ No solution found.")
 
