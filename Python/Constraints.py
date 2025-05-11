@@ -202,6 +202,25 @@ def evaluate_solution_type(solver, variable_model, variables, real_workers, dumm
         max_allowed = worker_limits.get(wid, '∞')
         print(f"🧍 Worker {wid}: assigned {assigned} shift, max allowed: {max_allowed}")
 
+
+def scheduled_auto():
+    db = connect()
+    result = db["result"]
+
+    update_result = result.update_many(
+        {"Week": "B"},
+        {"$set": {"Week": "A"}}
+    )
+
+    if update_result.modified_count > 0:
+        print(f"🔁 Rotated: {update_result.modified_count} schedules changed from Week B to A")
+    else:
+        print("⚠️ No Week B schedules found to rotate.")
+
+    main()
+
+
+
 def main():
     model = cp_model.CpModel()
     manager_id = 4
@@ -260,7 +279,8 @@ def main():
                 "generatedAt": datetime.now(),
                 "schedule": schedule_by_day,
                 "status": status_label,
-                "notes": issues
+                "notes": issues,
+                "Week" : "B"
             }
 
             db = connect()
@@ -270,17 +290,19 @@ def main():
     else:
         print("\n❌ No solution found.")
 
-if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description="Shift Scheduler")
-    # parser.add_argument("--mode", choices=["manual", "auto"], default="manual", help="Run mode: manual or auto")
-    # args = parser.parse_args()
 
-    # if args.mode == "manual":
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Shift Scheduler")
+    parser.add_argument("--mode", choices=["manual", "auto"], default="manual", help="Run mode: manual or auto")
+    args = parser.parse_args()
+
+    if args.mode == "manual":
+        print("🚀 Manual mode: Running main() once.")
         main()
 
-    # elif args.mode == "auto":
-    #     schedule.every().saturday.at("20:30").do(main)
-    #     print("⏳ Auto mode active. Will run every Saturday at 20:30.")
-    #     while True:
-    #         schedule.run_pending()
-    #         time.sleep(60)
+    elif args.mode == "auto":
+        schedule.every().sunday.at("18:34").do(scheduled_auto)
+        print("⏳ Auto mode active. Will run every Saturday at 20:30.")
+        while True:
+            schedule.run_pending()
+            time.sleep(60)
