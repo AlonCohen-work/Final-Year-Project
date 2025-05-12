@@ -51,6 +51,8 @@ app.post("/login", (req, res) => {
             name: user.name,
             job: user.job,
             Workplace: user.Workplace,
+            ShiftManager: user.ShiftManager,
+            WeaponCertified:user.WeaponCertified,
             schedule: hotelData ? hotelData.schedule : {},
           });
         }

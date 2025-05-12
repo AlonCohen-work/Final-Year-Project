@@ -27,6 +27,8 @@ const Login = () => {
             job: response.data.job,
             name: response.data.name,
             Workplace: response.data.Workplace,
+            ShiftManager: response.data.ShiftManager,
+            WeaponCertified:response.data.WeaponCertified,
           };
           localStorage.setItem("user", JSON.stringify(userData));
           navigate("/home", { state: { user: userData } });

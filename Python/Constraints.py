@@ -137,8 +137,11 @@ def print_solution(schedule_by_day):
         print(f"\n==={day}===")
         for shift, assignments in shifts.items():
             print(f"--{shift}--")
-            for position, var_name, worker_id in assignments:
+            for assignment in assignments:
+                position = assignment["position"]
+                worker_id = assignment["worker_id"]
                 print(f"{position}: {worker_id}")
+
     
 
 def add_per_shift_dummies(variables, id_to_worker):
@@ -208,14 +211,14 @@ def scheduled_auto():
     result = db["result"]
 
     update_result = result.update_many(
-        {"Week": "B"},
-        {"$set": {"Week": "A"}}
+        {"Week": "Now"},
+        {"$set": {"Week": "Old"}}
     )
 
     if update_result.modified_count > 0:
-        print(f"🔁 Rotated: {update_result.modified_count} schedules changed from Week B to A")
+        print(f"🔁 Rotated: {update_result.modified_count} schedules changed from Week Now to Old")
     else:
-        print("⚠️ No Week B schedules found to rotate.")
+        print("⚠️ No Week Now schedules found to rotate.")
 
     main()
 
@@ -259,28 +262,35 @@ def main():
         evaluate_solution_type(solver, variable_model, variables, real_workers, dummy_ids)
 
         # 🔄 שמירה למונגו
-                # 🔄 שמירה למונגו
         if connect_to_mongo():
-            # ניתוח אם הפתרון חלקי ואילו משמרות בעייתיות
             partial_notes = []
             for day, shifts in schedule_by_day.items():
                 for shift, assignments in shifts.items():
                     for assignment in assignments:
                         var_name = assignment['var_name']
                         assigned_id = assignment['worker_id']
-                        if var_name in dummy_ids and assigned_id == dummy_ids[var_name]:
-                            partial_notes.append(f"{day} {shift} - {assignment['position']}")
+                        position = assignment['position']
+
+                     
+                        is_supervisor = position.lower() == "shift supervisor"
+
+
+                    if var_name in dummy_ids and assigned_id == dummy_ids[var_name]:
+                        partial_notes.append({
+                            "shift": f"{day} {shift}",
+                            "position": position,
+                            "weapon": variables[var_name].get("required_weapon", False) or is_supervisor
+                         })
 
             status_label = "partial" if partial_notes else "full"
-            issues = ", ".join(partial_notes) if partial_notes else "All shifts filled"
 
             result_doc = {
                 "hotelName": result["hotel"]["name"],
                 "generatedAt": datetime.now(),
                 "schedule": schedule_by_day,
                 "status": status_label,
-                "notes": issues,
-                "Week" : "B"
+                "notes": partial_notes,
+                "Week": "Now"
             }
 
             db = connect()
@@ -289,7 +299,6 @@ def main():
 
     else:
         print("\n❌ No solution found.")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Shift Scheduler")

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/HomePage.css";
 
-// שמות קבצי תמונה
 import weekleyScu from "../images/weekleyScu.png";
 import ManageHours from "../images/ManageHours.png";
 import Employee_Request from "../images/iconapp-Photo.png";
@@ -12,37 +11,83 @@ const HomePage = () => {
   const [warning, setWarning] = useState([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const savedUser = JSON.parse(localStorage.getItem("user"));
-    if (savedUser) {
-      setUser(savedUser);
+ useEffect(() => {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  console.log("📥 Fetched user from localStorage:", savedUser);
+  if (!savedUser) return;
 
-      if (savedUser.Workplace) {
-        // שליפת תוצאה אחרונה ממונגו
-        fetch(`/get-latest-result/${savedUser.Workplace}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.status === "partial") {
-              setWarning(data.notes ? data.notes.split(", ") : []);
-            }
-          })
-          .catch(err => console.error("Failed to fetch schedule result:", err));
+  setUser(savedUser);
+  
+  if (!savedUser.Workplace) {
+    console.log("❌ No workplace found for user.");
+    return;
+  }
+
+  console.log(`🏨 Fetching latest schedule for hotel: ${savedUser.Workplace}`);
+  fetch(`/get-latest-result/${savedUser.Workplace}`)
+    .then(res => res.json())
+    .then(data => {
+      console.log("📦 Received schedule data:", data);
+
+      if (data.status !== "partial" || !data.notes) {
+        console.log("✅ Schedule is full or no issues found.");
+        return;
       }
-    } else {
-      setUser(null);
-    }
-  }, []);
+
+      const issues = Array.isArray(data.notes) ? data.notes : [];
+      console.log("⚠️ Found problematic shifts:", issues);
+
+      // מנהל רואה הכל
+      if (savedUser.job === "management") {
+        console.log("🧑‍💼 User is management — showing all warnings.");
+        setWarning(issues.map(i => `${i.shift} - ${i.position}`));
+        return;
+      }
+
+      // אחמש רואה הכל
+      if (savedUser.ShiftManager === true) {
+        console.log("👮 User is Shift Manager — showing all warnings.");
+        setWarning(issues.map(i => `${i.shift} - ${i.position}`));
+        return;
+      }
+
+      // בדיקה אם יש issue שדורש נשק והמשתמש מאושר
+      const foundWeaponIssue = issues.some(i => i.weapon === true);
+      const isSUP = issues.some(i => i.position === "Shift Supervisor");
+      if (foundWeaponIssue && savedUser.WeaponCertified === true && isSUP===false) {
+        console.log("🔫 User has Weapon Certification — showing weapon warnings.");
+        setWarning(issues.filter(i => i.weapon === true).map(i => `${i.shift} - ${i.position}`));
+        return;
+      }
+
+      // בדיקה אם יש issue שלא דורש נשק והמשתמש לא מוסמך
+      const foundNonWeaponIssue = issues.some(i => i.weapon === false);
+      if (foundNonWeaponIssue && savedUser.WeaponCertified === false  && isSUP===false) {
+        console.log("✅ User without weapon cert — showing non-weapon warnings.");
+        setWarning(issues.filter(i => i.weapon === false).map(i => `${i.shift} - ${i.position}`));
+        return;
+      }
+
+      console.log("ℹ️ No relevant issues to show.");
+    })
+    .catch(err => console.error("❌ Failed to fetch schedule result:", err));
+}, []);
+
+
 
   const handleCellClick = (path) => {
-    navigate(path); // ניווט לעמוד רלוונטי
+    navigate(path);
   };
 
   return (
     <div className="homepage">
       <h1>Welcome, {user ? user.name : "Guest"}!</h1>
+
       {warning.length > 0 && (
         <div className="warning-banner">
-           Partial schedule: please resubmit your availability. Problematic shifts: {warning.join(", ")}
+          {user?.job === "management"
+            ? `Partial schedule detected. Problematic shifts: ${warning.join(", ")}. Please inform employees to update their availability.`
+            : `Partial schedule: please resubmit your availability. Problematic shifts: ${warning.join(", ")}`}
         </div>
       )}
 
@@ -53,21 +98,9 @@ const HomePage = () => {
               <td onClick={() => handleCellClick('/weekleyScu')}>
                 <img src={weekleyScu} alt="Weekly Schedule" />
               </td>
-              {/* <td onClick={() => handleCellClick('/shiftswap')}>
-                <img src={shiftswap} alt="Shift Swap" />
-              </td> */}
             </tr>
 
-            {/* <tr>
-              <td onClick={() => handleCellClick('/payroll')}>
-                <img src={payroll} alt="Payroll" />
-              </td>
-              <td onClick={() => handleCellClick('/shiftswap')}>
-                <img src={payroll} alt="Payroll" />
-              </td>
-            </tr> */}
-
-            {user && user.job === 'Employee' && (
+            {user?.job === 'Employee' && (
               <tr>
                 <td onClick={() => handleCellClick('/EmployeeRequest')}>
                   <img src={Employee_Request} alt="Employee Request" />
@@ -75,7 +108,7 @@ const HomePage = () => {
               </tr>
             )}
 
-            {user && user.job === 'management' && (
+            {user?.job === 'management' && (
               <tr>
                 <td onClick={() => handleCellClick('/manage-hours')}>
                   <img src={ManageHours} alt="Manage Hours" />
