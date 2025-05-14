@@ -310,8 +310,10 @@ if __name__ == "__main__":
         main()
 
     elif args.mode == "auto":
-        schedule.every().sunday.at("18:34").do(scheduled_auto)
+        schedule.every().wednesday.at("11:07").do(scheduled_auto)
         print("⏳ Auto mode active. Will run every Saturday at 20:30.")
         while True:
             schedule.run_pending()
             time.sleep(60)
+#cd Phyton           
+#python name_of_your_script.py --mode auto

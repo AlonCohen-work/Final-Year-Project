@@ -1,0 +1,91 @@
+/* בסיס */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f9f9f9;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+/* עוטף תוכן */
+.content-wrapper {
+  max-width: 1000px;
+  margin: 40px auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+/* כותרת ראשית */
+h1 {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #1e3a8a;
+}
+
+/* כפתורים */
+.button-group {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.button-group button {
+  padding: 10px 20px;
+  background-color: #1e40af;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  margin: 0 10px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.button-group button:hover {
+  background-color: #2563eb;
+}
+
+.button-group button.active {
+  background-color: #f97316;
+}
+
+/* טבלת משמרות לפי יום */
+.day-section {
+  margin-bottom: 40px;
+}
+
+.day-section h3 {
+  text-align: center;
+  color: #1e3a8a;
+  margin-bottom: 10px;
+}
+
+.schedule-grid {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 auto;
+}
+
+.schedule-grid th,
+.schedule-grid td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: center;
+  vertical-align: top;
+}
+
+.schedule-grid th {
+  background-color: #1e40af;
+  color: white;
+}
+
+.worker-empty {
+  color: gray;
+}
+
+.worker-ok {
+  color: black;
+}
+
+.worker-missing {
+  color: red;
+}

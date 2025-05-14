@@ -138,6 +138,52 @@ app.get("/get-latest-result/:hotelName", (req, res) => {
     });
 });
 
+app.get("/get-full-schedules/:hotelName", (req, res) => {
+  const hotelName = req.params.hotelName;
+
+  db.collection("result")
+    .find({ hotelName })
+    .sort({ generatedAt: -1 })
+    .limit(2)
+    .toArray((err, schedules) => {
+      if (err || !schedules.length) {
+        return res.status(404).send("No schedules found");
+      }
+
+      people_coll.find({ Workplace: hotelName }).toArray((err2, workers) => {
+        if (err2) return res.status(500).send("Error fetching workers");
+
+        const idToName = {};
+        workers.forEach(w => {
+          idToName[String(w._id)] = w.name;
+        });
+
+        const allWorkerIds = new Set();
+        schedules.forEach(scheduleDoc => {
+          const schedule = scheduleDoc.schedule || {};
+          Object.values(schedule).forEach(day =>
+            Object.values(day).forEach(shift =>
+              shift.forEach(entry => allWorkerIds.add(entry.worker_id))
+            )
+          );
+        });
+
+        allWorkerIds.forEach(id => {
+          const idStr = String(id);
+          if (parseInt(id) < 0) {
+            idToName[idStr] = "Empty";
+          }
+        });
+
+        res.json({
+          latest: schedules[0],
+          previous: schedules[1] || null,
+          idToName
+        });
+      });
+    });
+});
+
 app.post("/save-schedule/:hotelName", (req, res) => {
   const hotelName = req.params.hotelName;
   const schedule = req.body.schedule;
