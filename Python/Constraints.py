@@ -221,8 +221,85 @@ def scheduled_auto():
         print("⚠️ No Week Now schedules found to rotate.")
 
     main()
+    test_cross_week_constraint()
 
+def no_morning_after_evening_new_schedule(model, variable_model, workers, old_schedule, variables):
+    if not old_schedule:
+        return
+    
+    saturday_evening_workers = []
+    
+    # מצא את כל העובדים שעבדו במשמרת ערב בשבת בשבוע הישן
+    for assignment in old_schedule.get('Saturday', {}).get('Evening', []):
+        worker_id = assignment.get('worker_id')
+        if worker_id != DUMMY_ID:
+            saturday_evening_workers.append(worker_id)
+    
+    # מנע מהם לעבוד במשמרת בוקר ביום ראשון
+    for var_name, var_info in variables.items():
+        if var_info['day'] == 'Sunday' and var_info['shift'] == 'Morning':
+            cp_var = variable_model[var_name]
+            for worker_id in saturday_evening_workers:
+                if worker_id in [w['_id'] for w in var_info['possible_workers']]:
+                    model.Add(cp_var != worker_id)
 
+def test_cross_week_constraint():
+    print("\n🔍 check between weeks")
+    
+    # התחבר למונגו
+    if not connect_to_mongo():
+        print("❌ cant coonect to mongo")
+        return
+        
+    db = connect()
+    
+    # שליפת לוח הזמנים הישן
+    old_result = db["result"].find_one({"Week": "Old"})
+    if not old_result or 'schedule' not in old_result:
+        print("❌ didnt find old schedule ")
+        return
+        
+    old_schedule = old_result.get('schedule')
+    
+    # שליפת לוח הזמנים החדש
+    new_result = db["result"].find_one({"Week": "Now"})
+    if not new_result or 'schedule' not in new_result:
+        print("❌didnt find new schedule")
+        return
+        
+    new_schedule = new_result.get('schedule')
+    
+    # מצא את העובדים שעבדו במשמרת ערב בשבת בשבוע הישן
+    saturday_evening_workers = []
+    if 'Saturday' in old_schedule and 'Evening' in old_schedule['Saturday']:
+        for assignment in old_schedule['Saturday']['Evening']:
+            worker_id = assignment.get('worker_id')
+            if worker_id > 0:  # לא עובד דמה
+                saturday_evening_workers.append(worker_id)
+                
+    if not saturday_evening_workers:
+        print("ℹ️ didnt find solution")
+        return
+        
+    print(f"👨‍💼 work in old_schedule : {saturday_evening_workers}")
+    
+    # בדוק אם מישהו מהם עובד במשמרת בוקר ביום ראשון בשבוע החדש
+    sunday_morning_workers = []
+    if 'Sunday' in new_schedule and 'Morning' in new_schedule['Sunday']:
+        for assignment in new_schedule['Sunday']['Morning']:
+            worker_id = assignment.get('worker_id')
+            if worker_id > 0:  # לא עובד דמה
+                sunday_morning_workers.append(worker_id)
+                
+    print(f"👨‍💼 work in the new schedule {sunday_morning_workers}")
+    
+    # בדוק את החפיפה בין שתי הקבוצות
+    overlap = [worker for worker in saturday_evening_workers if worker in sunday_morning_workers]
+    
+    if not overlap:
+        print("✅ its working ")
+    else:
+        print(f"⚠️ oh noooo {overlap} ")
 
 def main():
     model = cp_model.CpModel()
@@ -243,15 +320,24 @@ def main():
         workers_data['without_weapon']
     )
 
+    # שליפת לוח הזמנים הישן
+    old_schedule = None
+    if connect_to_mongo():
+        db = connect()
+        old_result = db["result"].find_one({"Week": "Old"})
+        if old_result:
+            old_schedule = old_result.get('schedule')
+    
     one_shift_per_day(variables, model, real_workers, variable_model, days)
     at_least_one_day_off(variables, model, real_workers, variable_model, days)
     no_morning_after_evening(variables, model, real_workers, variable_model, days)
+    no_morning_after_evening_new_schedule(model, variable_model, real_workers, old_schedule, variables)
     fairness_constraint(variables, model, real_workers, variable_model)
     minimize_dummy_usage(model, variable_model, dummy_ids)
 
     solver = cp_model.CpSolver()
     print("\n🔄 Solving the model...")
-    print_variable_domains(variables)
+ #   print_variable_domains(variables)
 
     status = solver.Solve(model)
 
@@ -297,6 +383,8 @@ def main():
             db["result"].insert_one(result_doc)
             print("🗂️ Schedule saved to MongoDB (collection: result)")
 
+        test_cross_week_constraint()
+
     else:
         print("\n❌ No solution found.")
 
@@ -315,3 +403,6 @@ if __name__ == "__main__":
         while True:
             schedule.run_pending()
             time.sleep(60)
+
+    
+   
