@@ -53,6 +53,7 @@ app.post("/login", (req, res) => {
             Workplace: user.Workplace,
             ShiftManager: user.ShiftManager,
             WeaponCertified:user.WeaponCertified,
+            selectedDays: user.selectedDays || [],
             schedule: hotelData ? hotelData.schedule : {},
           });
         }
