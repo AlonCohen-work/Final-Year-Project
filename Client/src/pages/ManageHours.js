@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom';
 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const shifts = ['Morning', 'Afternoon', 'Evening'];
 const defaultPositions = ['Control', 'Patrol', 'Entrance Security', 'Shift Supervisor'];
-
 const createInitialSchedule = () => {
   const schedule = {};
   shifts.forEach((shift) => {
@@ -27,9 +26,12 @@ const createInitialSchedule = () => {
 const ManageHours = () => {
   const navigate = useNavigate();
   const [schedule, setSchedule] = useState(createInitialSchedule());
+  const [currentStartDay, setCurrentStartDay] = useState(0);
 
   const user = JSON.parse(localStorage.getItem('user'));
   const hotelName = user ? user.Workplace : '';
+
+  const visibleDays = days.slice(currentStartDay, currentStartDay + 4);
 
   useEffect(() => {
     if (hotelName) {
@@ -92,7 +94,6 @@ const ManageHours = () => {
         .then(() => {
           alert("work place restin saved successfully!");
           console.log("Data work place successfully.");
-
           navigate("/home");
         })
         .catch(() => alert("Error saving schedule."));
@@ -108,15 +109,35 @@ const ManageHours = () => {
         {shifts.map(shift => (
           <div key={shift}>
             <h3>{shift} Shift</h3>
+
+            {/* כפתורי ניווט */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+  <button
+    className="day-nav"
+    onClick={() => setCurrentStartDay(prev => Math.max(prev - 4, 0))}
+    disabled={currentStartDay === 0}
+  >
+    <span role="img" aria-label="Previous Day">⬅️</span>
+  </button>
+  <button
+    className="day-nav"
+    onClick={() => setCurrentStartDay(prev => Math.min(prev + 4, days.length - 4))}
+    disabled={currentStartDay >= days.length - 4}
+  >
+    <span role="img" aria-label="Next Day">➡️</span>
+  </button>
+</div>
+
+
             <table className="schedule-table">
               <thead>
                 <tr>
                   <th rowSpan="2">Position</th>
-                  {days.map(day => <th colSpan="2" key={day}>{day}</th>)}
+                  {visibleDays.map(day => <th colSpan="2" key={day}>{day}</th>)}
                   <th rowSpan="2">Actions</th>
                 </tr>
                 <tr>
-                  {days.map(day => (
+                  {visibleDays.map(day => (
                     <React.Fragment key={`${day}-sub`}>
                       <th>No Weapon</th>
                       <th>Weapon</th>
@@ -124,11 +145,12 @@ const ManageHours = () => {
                   ))}
                 </tr>
               </thead>
+
               <tbody>
                 {Object.keys(schedule[shift]).map((position) => (
                   <tr key={position}>
                     <td>{position}</td>
-                    {days.map(day => (
+                    {visibleDays.map(day => (
                       <React.Fragment key={`${shift}-${position}-${day}`}>
                         <td className={schedule[shift][position][day].noWeapon > 0 ? 'selected-row' : ''}>
                           {position === 'Shift Supervisor' ? null : (
@@ -155,9 +177,11 @@ const ManageHours = () => {
                 ))}
               </tbody>
             </table>
+
             <button className="add-position" onClick={() => addPosition(shift)}>+ Add Position</button>
           </div>
         ))}
+
         <button className="save-all" onClick={saveSchedule}>Save All</button>
       </div>
     </div>

@@ -28,6 +28,7 @@ const Login = () => {
             name: response.data.name,
             Workplace: response.data.Workplace,
             ShiftManager: response.data.ShiftManager,
+            selectedDays: response.data.selectedDays || [],
             WeaponCertified:response.data.WeaponCertified,
           };
           localStorage.setItem("user", JSON.stringify(userData));

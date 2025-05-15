@@ -80,10 +80,6 @@ button.save-all:hover {
   background-color: #2e7d32;
 }
 
-button:hover {
-  opacity: 0.9;
-}
-
 button.add-position {
   background-color: #1976d2;
 }
@@ -98,4 +94,23 @@ button.remove-position {
 
 button.remove-position:hover {
   background-color: #c62828;
+}
+
+button.day-nav {
+  background-color: #1976d2;
+  color: white;
+  padding: 6px 10px;
+  margin: 0 5px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button.day-nav:disabled {
+  background-color: #90caf9;
+  cursor: not-allowed;
+}
+
+.selected-row {
+  background-color: #e8f5e9;
 }
