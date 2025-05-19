@@ -11,21 +11,28 @@ const WeekleyScu = () => {
   const [idToName, setIdToName] = useState({});
   const [viewMode, setViewMode] = useState("byDay");
 
+  const user = JSON.parse(localStorage.getItem("user"));
+
   useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem("user"));
-    if (!userData || !userData.Workplace) {
+    if (!user || !user.Workplace) {
       navigate("/login");
       return;
     }
 
-    fetch(`/get-full-schedules/${encodeURIComponent(userData.Workplace)}`)
+    fetch(`/get-full-schedules/${encodeURIComponent(user.Workplace)}`)
       .then((res) => res.json())
       .then((data) => {
         setSchedules({ latest: data.latest, previous: data.previous });
         setIdToName(data.idToName || {});
       })
       .catch((err) => console.error("Error fetching schedules and workers:", err));
-  }, [navigate]);
+  }, [navigate, user]);
+
+  const getWorkerClass = (name) => {
+    if (!name || name === "Empty") return "worker-missing";
+    if (name === user.name) return "highlight-user";
+    return "worker-ok";
+  };
 
   const currentSchedule = selectedSchedule === "A" ? schedules.latest : schedules.previous;
 
@@ -56,9 +63,7 @@ const WeekleyScu = () => {
                     <td key={shift}>
                       {entries.map((entry, i) => {
                         const name = idToName?.[String(entry.worker_id)];
-                        const className =
-                          name === "Empty" ? "worker-empty" :
-                          name ? "worker-ok" : "worker-missing";
+                        const className = getWorkerClass(name);
                         return (
                           <div key={i} className={className}>
                             {name ?? `ID: ${entry.worker_id}`}
@@ -111,9 +116,7 @@ const WeekleyScu = () => {
                       <td key={day}>
                         {entries.map((entry, i) => {
                           const name = idToName?.[String(entry.worker_id)];
-                          const className =
-                            name === "Empty" ? "worker-empty" :
-                            name ? "worker-ok" : "worker-missing";
+                          const className = getWorkerClass(name);
                           return (
                             <div key={i} className={className}>
                               {name ?? `ID: ${entry.worker_id}`}
@@ -136,21 +139,23 @@ const WeekleyScu = () => {
     <div className="content-wrapper">
       <h1>Weekly Schedule</h1>
 
-      <div className="button-group">
+      <div className="button-fixed-right">
         <button
           onClick={() => setSelectedSchedule("A")}
           className={selectedSchedule === "A" ? "active" : ""}
         >
-          <span role="img" aria-label="Schedule A">🅰️</span> Show Schedule A (Now)
+          <span role="img" aria-label="Schedule A">🅰️</span> Show Schedule This Week
         </button>
         <button
           onClick={() => setSelectedSchedule("B")}
           className={selectedSchedule === "B" ? "active" : ""}
         >
-          <span role="img" aria-label="Schedule B">🅱️</span> Show Schedule B (Previous)
+          <span role="img" aria-label="Schedule B">🅱️</span> Show Schedule Previous Week
         </button>
-        <button onClick={() => setViewMode(viewMode === "byDay" ? "wide" : "byDay")}
-                className="toggle-view">
+        <button
+          onClick={() => setViewMode(viewMode === "byDay" ? "wide" : "byDay")}
+          className="toggle-view"
+        >
           {viewMode === "byDay" ? "🔄 View as Matrix" : "📅 View by Day"}
         </button>
       </div>
