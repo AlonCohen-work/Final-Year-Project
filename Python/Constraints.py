@@ -354,3 +354,5 @@ if __name__ == "__main__":
         while True:
             schedule.run_pending()
             time.sleep(60)
+# cd Python
+# python Constraints.py --mode auto     
