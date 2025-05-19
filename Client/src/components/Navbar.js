@@ -38,7 +38,7 @@ const Navbar = () => {
         <div className="navbar-center">
           {user && (
             <span className="welcome-text">
-              Welcome, {user.name} ({user.job})
+             {user.job}
             </span>
           )}
         </div>

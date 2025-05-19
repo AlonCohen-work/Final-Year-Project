@@ -98,7 +98,7 @@ const WeekleyScu = () => {
 
       return (
         <div className="day-section" key={shift}>
-          <h3>{shift} Shift – Matrix View</h3>
+          <h3>{shift} Shift – Week View</h3>
           <table className="schedule-grid">
             <thead>
               <tr>
@@ -156,7 +156,7 @@ const WeekleyScu = () => {
           onClick={() => setViewMode(viewMode === "byDay" ? "wide" : "byDay")}
           className="toggle-view"
         >
-          {viewMode === "byDay" ? "🔄 View as Matrix" : "📅 View by Day"}
+          {viewMode === "byDay" ? "🔄 View as Week" : "📅 View as Day"}
         </button>
       </div>
 
