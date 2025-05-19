@@ -354,5 +354,3 @@ if __name__ == "__main__":
         while True:
             schedule.run_pending()
             time.sleep(60)
-#cd Phyton           
-#python name_of_your_script.py --mode auto

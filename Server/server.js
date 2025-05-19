@@ -86,6 +86,11 @@ app.post("/EmployeeRequest", (req, res) => {
       return res.status(404).send("User not found");
     }
 
+    const updateFields = {
+      selectedDays: selectedDays, // שומרים את הזמינות החדשה
+      availabilityLastUpdated: new Date() // מוסיפים/מעדכנים את חותמת הזמן לשעה הנוכחית
+    };
+
     people_coll.updateOne(
       { _id: numericId },
       { $set: { selectedDays } },
