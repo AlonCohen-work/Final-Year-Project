@@ -1,7 +1,7 @@
 from ortools.sat.python import cp_model
 from Algo import run_algo, available_workers
 from OrTools import available_shift, variables_for_shifts, print_possible_workers_per_shift
-from datetime import datetime
+from datetime import datetime, timedelta
 from MongoConnection import connect_to_mongo, mongo_db,connect
 
 import schedule
@@ -10,6 +10,64 @@ import argparse
 
 DUMMY_ID = -1
 
+def check_stale_availability(db, hotel_name, days_threshold=7):
+    """
+    בודקת את טריות הגשת הזמינות של העובדים במלון מסוים.
+    מחזירה True אם כל הזמינויות טריות, False אחרת.
+    מדפיסה התראה על עובדים עם זמינות ישנה או חסרה.
+    """
+    stale_workers_details = [] # נשמור כאן פרטים נוספים אם נרצה
+    # סף הזמן לקביעת "ישן" (ברירת מחדל: 7 ימים)
+    threshold_date = datetime.now() - timedelta(days=days_threshold)
+    print(f"ℹ️ [Availability Check] Threshold date for stale availability: {threshold_date.strftime('%Y-%m-%d %H:%M')}")
+
+    # מצא את כל העובדים במלון הרלוונטי (לא רק מנהלי משמרות או סוג מסוים)
+    # חשוב שהסינון לפי hotel_name יהיה מדויק לשדה שקיים אצלך (למשל, 'Workplace')
+    workers_in_hotel = db["people"].find({"Workplace": hotel_name})
+
+    processed_workers_count = 0
+    found_any_workers = False
+
+    for worker in workers_in_hotel:
+        found_any_workers = True
+        processed_workers_count += 1
+        worker_name = worker.get("name", f"ID: {worker['_id']}")
+        worker_id = worker['_id'] # למקרה שנרצה להחזיר ID-ים
+        last_updated = worker.get("availabilityLastUpdated") # זה השדה שהוספת
+
+        is_stale = False
+        reason = ""
+
+        if not last_updated:
+            is_stale = True
+            reason = "No 'availabilityLastUpdated' field"
+        elif not isinstance(last_updated, datetime):
+            is_stale = True
+            reason = f"Field 'availabilityLastUpdated' is not a datetime object (type: {type(last_updated)})"
+        elif last_updated < threshold_date:
+            is_stale = True
+            reason = f"Availability last updated at {last_updated.strftime('%Y-%m-%d %H:%M')} (older than threshold)"
+        
+        if is_stale:
+            stale_workers_details.append({"id": worker_id, "name": worker_name, "reason": reason})
+            print(f"  ⚠️ [Availability Check] Worker {worker_name} (ID: {worker_id}): {reason}")
+        else:
+            if isinstance(last_updated, datetime):
+                 print(f"  ✅ [Availability Check] Worker {worker_name} (ID: {worker_id}): Availability is fresh (updated at {last_updated.strftime('%Y-%m-%d %H:%M')})")
+
+
+    if not found_any_workers:
+        print(f"ℹ️ [Availability Check] No workers found for hotel '{hotel_name}' with the query used.")
+        return True 
+
+    print(f"ℹ️ [Availability Check] Checked {processed_workers_count} workers in hotel '{hotel_name}'.")
+    
+    if stale_workers_details:
+        print(f"‼️ [Availability Check] WARNING: {len(stale_workers_details)} worker(s) have stale or missing availability information for hotel '{hotel_name}'. Manager should be notified.")
+        return False 
+    else:
+        print("✅ [Availability Check] All checked workers have fresh availability information.")
+        return True 
 def one_shift_per_day(variables, model, workers, variable_model, days):
     for worker in workers:
         worker_id = worker['_id']
@@ -245,6 +303,24 @@ def scheduled_auto():
     else:
         print("⚠️ No Week Now schedules found to rotate.")
 
+    MANAGER_ID_FOR_SCHEDULE = 4
+
+    manager_doc_for_check = db["people"].find_one({"_id": MANAGER_ID_FOR_SCHEDULE})
+    
+    hotel_name_for_check = None
+    if manager_doc_for_check and manager_doc_for_check.get("Workplace"):
+        hotel_name_for_check = manager_doc_for_check.get("Workplace")
+    
+    if hotel_name_for_check:
+        print(f"\n🔍 [Scheduled Auto] Checking availability for hotel: '{hotel_name_for_check}' (Manager: {MANAGER_ID_FOR_SCHEDULE})...")
+        all_fresh = check_stale_availability(db, hotel_name_for_check)
+        if not all_fresh:
+            print("⚠️ [Scheduled Auto] Stale availabilities found. Manager should be notified.")
+        else:
+            print("👍 [Scheduled Auto] Worker availabilities are fresh.")
+    else:
+        print(f"⚠️ [Scheduled Auto] Cannot determine hotel for Manager ID {MANAGER_ID_FOR_SCHEDULE}. Skipping availability check.")    
+
     main(previous_week_schedule_data=previous_week_schedule_data)
 
 def main(previous_week_schedule_data=None):
@@ -338,6 +414,8 @@ def main(previous_week_schedule_data=None):
             print("🗂️ Schedule saved to MongoDB (collection: result)")
     else:
         print("\n❌ No solution found.")
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Shift Scheduler")
