@@ -97,7 +97,7 @@ const WeekleyScu = () => {
                     latest: data && data.now ? data.now : null,
                     previous: Array.isArray(data && data.old) ? data.old : []
                 });
-                setIdToWorker(data && data.now && data.now.id_to_worker ? data.now.id : {});
+                setIdToWorker(data && data.now && data.now.idToWorker ? data.now.idToWorker : {});
             })
             .catch((err) => {
                 console.error("שגיאה בטעינת סידורים:", err);

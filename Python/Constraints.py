@@ -277,7 +277,7 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
     model = cp_model.CpModel()
     
     manager_id_to_process = run_for_manager_id if run_for_manager_id is not None else 4
-    print(f"ℹ[Main] Running schedule generation for Manager ID: {manager_id_to_process}")
+    print(f"[Main] Running schedule generation for Manager ID: {manager_id_to_process}")
 
     if not target_week_start_date_str:
         print(" [Main] Critical error: No target_week_start_date_str provided to main(). Cannot proceed.")

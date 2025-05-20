@@ -37,7 +37,7 @@ const HomePage = () => {
 
     const selectedDays = savedUser.selectedDays || [];
 
-    fetch(`/get-latest-result/${savedUser.Workplace}`)
+    fetch(`/get-schedule/${encodeURIComponent(savedUser.Workplace)}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.status !== "partial" || !data.notes) return;

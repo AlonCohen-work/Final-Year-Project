@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import '../styles/ManageHours.css';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+// useNavigate כנראה לא בשימוש בקומפוננטה הזו, אם כן - השאירי, אם לא - אפשר להסיר את השורה הבאה
+// import { useNavigate } from 'react-router-dom';
 
 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const shifts = ['Morning', 'Afternoon', 'Evening'];
@@ -47,16 +48,34 @@ const getWeekDateRangeString = (startDate) => {
 };
 
 const ManageHours = () => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // אם לא בשימוש, הסירי או השאירי בהערה
+
   const [schedule, setSchedule] = useState(createInitialSchedule());
   const [currentDayViewIndex, setCurrentDayViewIndex] = useState(0);
   const [targetWeekForPlanning, setTargetWeekForPlanning] = useState(null);
 
-  const user = JSON.parse(localStorage.getItem('user'));
-  const hotelName = user ? user.Workplace : '';
+  // הגדרת user ו-hotelName כ-state
+  const [user, setUser] = useState(null);
+  const [hotelName, setHotelName] = useState('');
+
   const visibleDays = days.slice(currentDayViewIndex, currentDayViewIndex + 4);
 
+  // useEffect לאתחול נתונים מ-localStorage וקביעת שבוע התכנון
   useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (storedUser) {
+      setUser(storedUser);
+      if (storedUser.Workplace) {
+        setHotelName(storedUser.Workplace);
+        console.log("ManageHours: hotelName set from localStorage:", storedUser.Workplace);
+      } else {
+        console.warn("ManageHours: Workplace not found in stored user from localStorage.");
+        setHotelName('');
+      }
+    } else {
+      console.warn("ManageHours: User not found in localStorage.");
+    }
+
     const today = new Date();
     const startOfThisCalendarWeek = getStartOfWeek(today);
     const nextCalendarWeekStart = new Date(startOfThisCalendarWeek);
@@ -66,6 +85,7 @@ const ManageHours = () => {
 
   const fetchCurrentRequirements = useCallback(() => {
     if (hotelName) {
+      console.log("Fetching requirements for hotel (from state):", hotelName);
       axios.get(`/get-schedule/${encodeURIComponent(hotelName)}`)
         .then(res => {
           if (res.data && typeof res.data.schedule === 'object' && res.data.schedule !== null && Object.keys(res.data.schedule).length > 0) {
@@ -74,13 +94,18 @@ const ManageHours = () => {
             setSchedule(createInitialSchedule());
           }
         })
-        .catch(() => { setSchedule(createInitialSchedule()); });
-    } else { if (user && !hotelName) { alert("Hotel name not found!"); } }
-  }, [hotelName, user]);
+        .catch((err) => {
+          console.error("Error fetching schedule for hotel:", hotelName, err.response ? err.response.data : err.message);
+          setSchedule(createInitialSchedule());
+        });
+    }
+  }, [hotelName]);
 
   useEffect(() => {
-    fetchCurrentRequirements();
-  }, [fetchCurrentRequirements]);
+    if (hotelName) {
+      fetchCurrentRequirements();
+    }
+  }, [hotelName, fetchCurrentRequirements]);
 
   const handleChange = (shift, position, day, weaponType, value) => {
     const numericValue = parseInt(value, 10);
@@ -147,17 +172,23 @@ const ManageHours = () => {
 
   const saveSchedule = () => {
     if (hotelName) {
+      console.log("Saving schedule for hotel (from state):", hotelName);
       axios.post(`/save-schedule/${encodeURIComponent(hotelName)}`, { schedule })
         .then(() => {
           alert(`Requirements saved (for week starting ${targetWeekForPlanning ? targetWeekForPlanning.toLocaleDateString('en-US') : 'unknown'})`);
         })
-        .catch(() => alert("Error saving schedule requirements."));
-    } else { alert("Hotel name not found."); }
+        .catch((err) => {
+          console.error("Error saving schedule requirements for hotel:", hotelName, err.response ? err.response.data : err.message);
+          alert("Error saving schedule requirements.");
+        });
+    } else {
+      alert("Hotel name not found in state. Cannot save schedule.");
+    }
   };
 
   const handleRunScheduler = async () => {
     if (!hotelName || !targetWeekForPlanning) {
-      alert("Hotel name or target planning week is not set.");
+      alert("Hotel name (from state) or target planning week is not set.");
       return;
     }
     const confirmRun = window.confirm(`Create schedule for week starting ${targetWeekForPlanning.toLocaleDateString('en-US')}? 
@@ -166,20 +197,25 @@ Make sure you have saved the current requirements.`);
     if (confirmRun) {
       try {
         const targetDateString = targetWeekForPlanning.toISOString().split('T')[0];
-        console.log(`Requesting to run scheduler for hotel: ${hotelName}, target week: ${targetDateString}`);
+        console.log(`Requesting to run scheduler for hotel (from state): ${hotelName}, target week: ${targetDateString}`);
         const response = await axios.post(`/api/run-scheduler/${encodeURIComponent(hotelName)}`, {
           targetWeekStartDate: targetDateString
         });
         alert(response.data.message || "Scheduler request sent successfully.");
       } catch (error) {
         const errorMsg = error.response?.data?.stderr || error.response?.data?.message || error.message || "Unknown error";
+        console.error("Error running scheduler for hotel:", hotelName, error.response ? error.response.data : error.message);
         alert(`Error running scheduler: ${errorMsg}`);
       }
     }
   };
 
-  if (!user) { return <div>Loading user data...</div>; }
-  if (!hotelName) { return <div>No workplace assigned to user.</div>; }
+  if (!user) {
+    return <div>Loading user data or user not logged in... Please try logging in again.</div>;
+  }
+  if (user && !hotelName) {
+    return <div>No workplace assigned to the logged-in user. Please check your profile.</div>;
+  }
 
   return (
     <div className="manage-hours-container">

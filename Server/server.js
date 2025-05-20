@@ -128,34 +128,91 @@ app.get("/get-schedule/:hotelName", (req, res) => {
     res.json({ schedule: data.schedule || {} });
   });
 });
-
+// server.js
+// ...
 app.post("/save-schedule/:hotelName", (req, res) => {
-  const hotelName = req.params.hotelName;
+  const hotelNameFromParam = req.params.hotelName; // שיניתי את שם המשתנה כדי שיהיה ברור שהוא מה-URL
   const { schedule } = req.body;
 
   if (!schedule || typeof schedule !== 'object') {
     return res.status(400).json({ success: false, message: "Schedule data is missing or invalid." });
   }
 
-  Workplace_coll.updateOne(
-    { hotelName: hotelName },
-    { $set: { schedule: schedule } },
-    { upsert: true },
-    (err, result) => {
-      if (err) {
-        console.error(`Error saving schedule to Workplace_coll for ${hotelName}:`, err);
-        return res.status(500).json({ success: false, message: "Error saving schedule data." });
-      }
-      if (result.acknowledged && (result.matchedCount > 0 || result.upsertedCount > 0)) {
-        console.log(`Schedule saved successfully for ${hotelName}.`);
-        res.status(200).json({ success: true, message: "Schedule requirements saved successfully." });
-      } else {
-        console.log(`Workplace not found for hotelName: ${hotelName} or no changes made.`);
-        return res.status(404).json({ success: false, message: "Workplace not found or no changes applied." });
-      }
+  // שלב 1: נסי למצוא את הרשומה קודם (לצורך אבחון)
+  console.log(`Attempting to find workplace in Workplace_coll: "${hotelNameFromParam}"`);
+  Workplace_coll.findOne({ hotelName: hotelNameFromParam }, (findErr, foundDoc) => {
+    if (findErr) {
+      console.error(`Database error while trying to find workplace "${hotelNameFromParam}":`, findErr);
+      return res.status(500).json({ success: false, message: "Error checking if workplace exists." });
     }
-  );
+
+    if (foundDoc) {
+      console.log(`Workplace "${hotelNameFromParam}" FOUND by findOne. Document:`, JSON.stringify(foundDoc, null, 2));
+    } else {
+      console.log(`Workplace "${hotelNameFromParam}" WAS NOT FOUND by findOne.`);
+    }
+
+    // שלב 2: בצעי את העדכון (או היצירה אם upsert)
+    console.log(`Now attempting to updateOne for workplace: "${hotelNameFromParam}"`);
+    Workplace_coll.updateOne(
+      { hotelName: hotelNameFromParam }, // התנאי לחיפוש
+      { $set: { schedule: schedule } },    // הנתונים לעדכון
+      { upsert: true },                    // אפשר יצירה אם לא קיים
+      (updateErr, result) => {
+        if (updateErr) {
+          console.error(`Database error during updateOne for "${hotelNameFromParam}":`, updateErr);
+          return res.status(500).json({ success: false, message: "Error saving schedule data during update." });
+        }
+        
+        // הדפסת התוצאה הגולמית מ-mongojs
+        console.log(`Raw update result from mongojs for "${hotelNameFromParam}":`, JSON.stringify(result, null, 2));
+
+        // בדיקת הצלחה - מותאמת יותר לתוצאות ש-mongojs מחזיר בדרך כלל
+        // עבור mongojs:
+        // result.ok === 1 מציין שהפעולה הגיעה לשרת והוא עיבד אותה.
+        // result.n הוא מספר הרשומות שתאמו (matched).
+        // result.nModified הוא מספר הרשומות ששונו.
+        // result.upserted הוא מערך של הרשומות שנוצרו (אם upsert התבצע).
+        let operationSucceeded = false;
+        let successMessage = "";
+
+        if (result && (result.ok === 1 || result.acknowledged === true)) { // acknowledged נוסף ליתר ביטחון
+            if (result.upserted && result.upserted.length > 0) {
+                operationSucceeded = true;
+                successMessage = `New schedule created successfully for "${hotelNameFromParam}".`;
+                console.log(successMessage + ` Upserted ID: ${result.upserted[0]._id}`);
+            } else if (result.nModified > 0) {
+                operationSucceeded = true;
+                successMessage = `Schedule updated successfully for "${hotelNameFromParam}".`;
+                console.log(successMessage + ` Matched: ${result.n}, Modified: ${result.nModified}`);
+            } else if (result.n > 0 && result.nModified === 0) {
+                // נמצאה רשומה, אבל לא בוצע שינוי (כי הנתונים זהים)
+                operationSucceeded = true; // עדיין נחשיב כהצלחה מבחינת מציאת הרשומה
+                successMessage = `Schedule for "${hotelNameFromParam}" found, but no changes were needed.`;
+                console.log(successMessage + ` Matched: ${result.n}`);
+            } else if (result.n === 0 && (!result.upserted || result.upserted.length === 0)) {
+                // לא נמצא, וגם לא בוצע upsert - זה המקרה של 404
+                console.log(`updateOne for "${hotelNameFromParam}": No document matched and no document was upserted.`);
+            } else {
+                 // מקרה לא צפוי אחר שלכאורה ok:1 אבל לא ברור מה קרה
+                 console.log(`updateOne for "${hotelNameFromParam}": ok:1 but unclear outcome. n=${result.n}, nModified=${result.nModified}, upserted=${JSON.stringify(result.upserted)}`);
+            }
+        } else {
+            console.log(`updateOne for "${hotelNameFromParam}": Operation not acknowledged or 'ok' not 1. Result:`, JSON.stringify(result, null, 2));
+        }
+
+        if (operationSucceeded) {
+          res.status(200).json({ success: true, message: successMessage });
+        } else {
+          // אם לא הייתה הצלחה מובהקת (כולל המקרה של n=0 ואין upsert)
+          console.log(` النهائية: Workplace not found or no changes applied for "${hotelNameFromParam}". Full result object was printed above.`);
+          return res.status(404).json({ success: false, message: `Workplace "${hotelNameFromParam}" not found or no changes applied.` });
+        }
+      }
+    );
+  });
 });
+// ...
 
 // Scheduler endpoints
 app.post("/api/run-scheduler/:hotelName", (req, res) => {
