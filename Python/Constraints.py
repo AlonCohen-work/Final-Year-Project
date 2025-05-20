@@ -2,7 +2,7 @@ from ortools.sat.python import cp_model
 from Algo import run_algo, available_workers
 from OrTools import available_shift, variables_for_shifts, print_possible_workers_per_shift
 from datetime import datetime, timedelta
-from MongoConnection import connect_to_mongo, mongo_db,connect
+from MongoConnection import connect_to_mongo, mongo_db, connect
 
 import schedule
 import time
@@ -11,20 +11,15 @@ import argparse
 DUMMY_ID = -1
 
 def check_stale_availability(db, hotel_name, days_threshold=7):
-    """
-    בודקת את טריות הגשת הזמינות של העובדים במלון מסוים.
-    מחזירה True אם כל הזמינויות טריות, False אחרת.
-    מדפיסה התראה על עובדים עם זמינות ישנה או חסרה.
-    """
-    stale_workers_details = [] # נשמור כאן פרטים נוספים אם נרצה
-    # סף הזמן לקביעת "ישן" (ברירת מחדל: 7 ימים)
+    if not db:
+        print(" [Check Stale] No DB connection provided.")
+        return True
+
+    stale_workers_details = []
     threshold_date = datetime.now() - timedelta(days=days_threshold)
-    print(f"ℹ️ [Availability Check] Threshold date for stale availability: {threshold_date.strftime('%Y-%m-%d %H:%M')}")
+    print(f" [Availability Check] Threshold date for stale availability: {threshold_date.strftime('%Y-%m-%d %H:%M')}")
 
-    # מצא את כל העובדים במלון הרלוונטי (לא רק מנהלי משמרות או סוג מסוים)
-    # חשוב שהסינון לפי hotel_name יהיה מדויק לשדה שקיים אצלך (למשל, 'Workplace')
     workers_in_hotel = db["people"].find({"Workplace": hotel_name})
-
     processed_workers_count = 0
     found_any_workers = False
 
@@ -32,8 +27,8 @@ def check_stale_availability(db, hotel_name, days_threshold=7):
         found_any_workers = True
         processed_workers_count += 1
         worker_name = worker.get("name", f"ID: {worker['_id']}")
-        worker_id = worker['_id'] # למקרה שנרצה להחזיר ID-ים
-        last_updated = worker.get("availabilityLastUpdated") # זה השדה שהוספת
+        worker_id = worker['_id']
+        last_updated = worker.get("availabilityLastUpdated")
 
         is_stale = False
         reason = ""
@@ -47,27 +42,27 @@ def check_stale_availability(db, hotel_name, days_threshold=7):
         elif last_updated < threshold_date:
             is_stale = True
             reason = f"Availability last updated at {last_updated.strftime('%Y-%m-%d %H:%M')} (older than threshold)"
-        
+
         if is_stale:
             stale_workers_details.append({"id": worker_id, "name": worker_name, "reason": reason})
-            print(f"  ⚠️ [Availability Check] Worker {worker_name} (ID: {worker_id}): {reason}")
+            print(f"   [Availability Check] Worker {worker_name} (ID: {worker_id}): {reason}")
         else:
             if isinstance(last_updated, datetime):
-                 print(f"  ✅ [Availability Check] Worker {worker_name} (ID: {worker_id}): Availability is fresh (updated at {last_updated.strftime('%Y-%m-%d %H:%M')})")
-
+                print(f"   [Availability Check] Worker {worker_name} (ID: {worker_id}): Availability is fresh (updated at {last_updated.strftime('%Y-%m-%d %H:%M')})")
 
     if not found_any_workers:
-        print(f"ℹ️ [Availability Check] No workers found for hotel '{hotel_name}' with the query used.")
-        return True 
+        print(f"[Availability Check] No workers found for hotel '{hotel_name}' with the query used.")
+        return True
 
-    print(f"ℹ️ [Availability Check] Checked {processed_workers_count} workers in hotel '{hotel_name}'.")
-    
+    print(f" [Availability Check] Checked {processed_workers_count} workers in hotel '{hotel_name}'.")
+
     if stale_workers_details:
-        print(f"‼️ [Availability Check] WARNING: {len(stale_workers_details)} worker(s) have stale or missing availability information for hotel '{hotel_name}'. Manager should be notified.")
-        return False 
+        print(f" [Availability Check] WARNING: {len(stale_workers_details)} worker(s) have stale or missing availability information for hotel '{hotel_name}'. Manager should be notified.")
+        return False
     else:
-        print("✅ [Availability Check] All checked workers have fresh availability information.")
-        return True 
+        print(" [Availability Check] All checked workers have fresh availability information.")
+        return True
+
 def one_shift_per_day(variables, model, workers, variable_model, days):
     for worker in workers:
         worker_id = worker['_id']
@@ -171,10 +166,10 @@ def fairness_constraint(variables, model, workers, variable_model):
 
 def prevent_sunday_morning_after_saturday_evening_last_week(variables, model, variable_model, workers_to_restrict):
     if not workers_to_restrict:
-        print("ℹ️ No workers to restrict for Sunday Morning based on last week's Saturday Evening.")
+        print(" No workers to restrict for Sunday Morning based on last week's Saturday Evening.")
         return
 
-    print(f"ℹ️ Applying 'No Sunday Morning after last week Saturday Evening' constraint for workers: {workers_to_restrict}")
+    print(f" Applying 'No Sunday Morning after last week Saturday Evening' constraint for workers: {workers_to_restrict}")
 
     for worker_id in workers_to_restrict:
         for var_name, var_info in variables.items():
@@ -207,7 +202,7 @@ def solution_by_day(solver, variable_model, variables, days):
     return schedule_by_day, worker_shift_count
 
 def print_solution(schedule_by_day):
-    print("📅 Final Schedule")
+    print(" Final Schedule")
     for day, shifts in schedule_by_day.items():
         print(f"\n==={day}===")
         for shift, assignments in shifts.items():
@@ -265,72 +260,44 @@ def evaluate_solution_type(solver, variable_model, variables, real_workers, dumm
         if var_name in dummy_ids and worker_id == dummy_ids[var_name]:
             dummy_count += 1
     
-    print("\n📊 Solution Evaluation")
+    print("\n Solution Evaluation")
     print(f"Total shifts: {total_shifts}")
     print(f"Dummy assignments: {dummy_count}")
     if dummy_count == 0:
-        print("✅ This is a full solution (no dummy workers used).")
+        print(" This is a full solution (no dummy workers used).")
     else:
-        print("⚠️ This is a partial solution (some shifts assigned to dummy workers).")
+        print(" This is a partial solution (some shifts assigned to dummy workers).")
 
-    print("\n📋 Worker Assignment Summary:")
+    print("\n Worker Assignment Summary:")
     for wid, assigned in worker_assigned.items():
         max_allowed = worker_limits.get(wid, '∞')
-        print(f"🧍 Worker {wid}: assigned {assigned} shift, max allowed: {max_allowed}")
+        print(f" Worker {wid}: assigned {assigned} shift, max allowed: {max_allowed}")
 
-def scheduled_auto():
-    db = connect()
-    result_collection = db["result"]
-
-    last_now_schedule_doc = result_collection.find_one(
-        {"Week": "Now"},
-        sort=[("generatedAt", -1)]
-    )
-    previous_week_schedule_data = None
-    if last_now_schedule_doc and "schedule" in last_now_schedule_doc:
-        previous_week_schedule_data = last_now_schedule_doc["schedule"]
-        print("ℹ️ Found previous week's ('Now') schedule data to consider.")
-    else:
-        print("ℹ️ No previous 'Now' schedule found to pass to main(). This might be the first run or data missing.")
-
-    update_result = result_collection.update_many(
-        {"Week": "Now"},
-        {"$set": {"Week": "Old"}}
-    )
-
-    if update_result.modified_count > 0:
-        print(f"🔁 Rotated: {update_result.modified_count} schedules changed from Week Now to Old")
-    else:
-        print("⚠️ No Week Now schedules found to rotate.")
-
-    MANAGER_ID_FOR_SCHEDULE = 4
-
-    manager_doc_for_check = db["people"].find_one({"_id": MANAGER_ID_FOR_SCHEDULE})
-    
-    hotel_name_for_check = None
-    if manager_doc_for_check and manager_doc_for_check.get("Workplace"):
-        hotel_name_for_check = manager_doc_for_check.get("Workplace")
-    
-    if hotel_name_for_check:
-        print(f"\n🔍 [Scheduled Auto] Checking availability for hotel: '{hotel_name_for_check}' (Manager: {MANAGER_ID_FOR_SCHEDULE})...")
-        all_fresh = check_stale_availability(db, hotel_name_for_check)
-        if not all_fresh:
-            print("⚠️ [Scheduled Auto] Stale availabilities found. Manager should be notified.")
-        else:
-            print("👍 [Scheduled Auto] Worker availabilities are fresh.")
-    else:
-        print(f"⚠️ [Scheduled Auto] Cannot determine hotel for Manager ID {MANAGER_ID_FOR_SCHEDULE}. Skipping availability check.")    
-
-    main(previous_week_schedule_data=previous_week_schedule_data)
-
-def main(previous_week_schedule_data=None):
+def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_start_date_str=None):
     model = cp_model.CpModel()
-    manager_id = 4
+    
+    manager_id_to_process = run_for_manager_id if run_for_manager_id is not None else 4
+    print(f"ℹ[Main] Running schedule generation for Manager ID: {manager_id_to_process}")
+
+    if not target_week_start_date_str:
+        print(" [Main] Critical error: No target_week_start_date_str provided to main(). Cannot proceed.")
+        return
+
+    try:
+        if isinstance(target_week_start_date_str, datetime):
+            target_week_start_date_for_result = target_week_start_date_str.strftime('%Y-%m-%d')
+        else:
+            datetime.strptime(target_week_start_date_str, '%Y-%m-%d')
+            target_week_start_date_for_result = target_week_start_date_str
+        print(f"ℹ [Main] Target week for this run: starts {target_week_start_date_for_result}")
+    except ValueError:
+        print(f" [Main] Invalid target week format received: {target_week_start_date_str}. Cannot proceed.")
+        return
+
     days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
     workers_who_worked_saturday_evening_last_week = set()
     if previous_week_schedule_data:
-        print("ℹ️ Processing previous week's schedule data in main()...")
         if "Saturday" in previous_week_schedule_data and \
            isinstance(previous_week_schedule_data["Saturday"], dict) and \
            "Evening" in previous_week_schedule_data["Saturday"] and \
@@ -340,16 +307,20 @@ def main(previous_week_schedule_data=None):
                     worker_id = assignment.get("worker_id")
                     if isinstance(worker_id, int) and worker_id > 0:
                         workers_who_worked_saturday_evening_last_week.add(worker_id)
-        if workers_who_worked_saturday_evening_last_week:
-            print(f"ℹ️ Workers identified from last week's Saturday Evening: {workers_who_worked_saturday_evening_last_week}")
-        else:
-            print("ℹ️ No workers identified from last week's Saturday Evening shifts.")
+            if workers_who_worked_saturday_evening_last_week:
+                print(f"ℹ Workers identified from last week's Saturday Evening: {workers_who_worked_saturday_evening_last_week}")
+            else:
+                print("ℹ No workers identified from last week's Saturday Evening shifts.")
 
-    result = run_algo(manager_id)
-    workers_data = result['workers']
+    algo_result = run_algo(manager_id_to_process)
+    if not algo_result:
+        print(f" [Main] Failed to get data from run_algo for manager {manager_id_to_process}. Aborting.")
+        return
+
+    workers_data = algo_result['workers']
     available_employee, id_to_worker = available_workers(workers_data)
 
-    variables = available_shift(result['variables'], available_employee, id_to_worker)
+    variables = available_shift(algo_result['variables'], available_employee, id_to_worker)
     dummy_ids = add_per_shift_dummies(variables, id_to_worker)
     variable_model = variables_for_shifts(variables, model)
 
@@ -374,17 +345,21 @@ def main(previous_week_schedule_data=None):
     minimize_dummy_usage(model, variable_model, dummy_ids)
 
     solver = cp_model.CpSolver()
-    print("\n🔄 Solving the model...")
-
+    print(f"\n [Main] Solving the model for manager {manager_id_to_process}, target week {target_week_start_date_for_result}...")
     status = solver.Solve(model)
 
     if status in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
-        print("\n✅ Solution found!")
+        print("\n [Main] Solution found!")
         schedule_by_day, worker_shift_counts = solution_by_day(solver, variable_model, variables, days)
         print_solution(schedule_by_day)
         evaluate_solution_type(solver, variable_model, variables, real_workers, dummy_ids)
 
         if connect_to_mongo():
+            db = connect()
+            if not db:
+                print(" [Main] Failed to connect to DB for saving results.")
+                return
+
             partial_notes = []
             for day, shifts_in_day in schedule_by_day.items():
                 for shift_type, assignments_in_shift in shifts_in_day.items():
@@ -400,37 +375,147 @@ def main(previous_week_schedule_data=None):
                                 "position": position,
                                 "weapon": variables[var_name].get("required_weapon", False) or is_supervisor_for_dummy
                             })
+
             status_label = "partial" if partial_notes else "full"
             result_doc = {
-                "hotelName": result["hotel"]["name"],
+                "hotelName": algo_result["hotel"]["name"],
                 "generatedAt": datetime.now(),
+                "relevantWeekStartDate": target_week_start_date_for_result,
                 "schedule": schedule_by_day,
                 "status": status_label,
                 "notes": partial_notes,
-                "Week": "Now"
+                "Week": "Now",
+                "idToWorker": {str(k): v for k, v in id_to_worker.items()}
             }
-            db = connect()
-            db["result"].insert_one(result_doc)
-            print("🗂️ Schedule saved to MongoDB (collection: result)")
+
+            insert_result = db["result"].insert_one(result_doc)
+            if insert_result.inserted_id:
+                print(f"[Main] Schedule saved to MongoDB with ID {insert_result.inserted_id} for week starting {target_week_start_date_for_result}")
+            else:
+                print(" [Main] Failed to save schedule to MongoDB.")
     else:
-        print("\n❌ No solution found.")
+        print(f"\n [Main] No solution found for manager {manager_id_to_process}, target week {target_week_start_date_for_result}. Status: {solver.StatusName(status)}")
 
+def scheduled_auto():
+    print(f"\n--- Starting scheduled_auto run at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
+    db = connect()
+    if not db:
+        print(" [Scheduled Auto] Failed to connect to MongoDB. Aborting.")
+        return
 
+    result_collection = db["result"]
+    MANAGER_ID_FOR_AUTO_RUN = 4
+    manager_doc_for_hotel = db["people"].find_one({"_id": MANAGER_ID_FOR_AUTO_RUN})
+    
+    if not manager_doc_for_hotel or not manager_doc_for_hotel.get("Workplace"):
+        print(f" [Scheduled Auto] Cannot determine hotel for auto run (Manager ID: {MANAGER_ID_FOR_AUTO_RUN}). Aborting.")
+        return
+
+    hotel_name_for_auto_run = manager_doc_for_hotel.get("Workplace")
+    last_now_schedule_doc = result_collection.find_one(
+        {"hotelName": hotel_name_for_auto_run, "Week": "Now"},
+        sort=[("generatedAt", -1)]
+    )
+
+    previous_week_schedule_data_for_main = None
+    if last_now_schedule_doc and "schedule" in last_now_schedule_doc:
+        previous_week_schedule_data_for_main = last_now_schedule_doc["schedule"]
+        print(f"ℹ [Scheduled Auto] Found previous 'Now' schedule for {hotel_name_for_auto_run} to consider for constraints.")
+    else:
+        print(f"ℹ [Scheduled Auto] No previous 'Now' schedule found for {hotel_name_for_auto_run}.")
+
+    update_rotation_result = result_collection.update_many(
+        {"hotelName": hotel_name_for_auto_run, "Week": "Now"},
+        {"$set": {"Week": "Old"}}
+    )
+
+    if update_rotation_result.modified_count > 0:
+        print(f" [Scheduled Auto] Rotated: {update_rotation_result.modified_count} schedule(s) for {hotel_name_for_auto_run} from 'Now' to 'Old'.")
+    else:
+        print(f"[Scheduled Auto] No 'Week: Now' schedules found to rotate for {hotel_name_for_auto_run}.")
+
+    today = datetime.now()
+    start_of_this_calendar_week = today - timedelta(days=today.weekday() + 1 if today.weekday() != 6 else 0)
+    start_of_this_calendar_week = start_of_this_calendar_week.replace(hour=0, minute=0, second=0, microsecond=0)
+    target_week_for_run = start_of_this_calendar_week + timedelta(days=7)
+    target_week_for_run_str = target_week_for_run.strftime('%Y-%m-%d')
+
+    print(f"ℹ [Scheduled Auto] Preparing to generate schedule for Manager ID {MANAGER_ID_FOR_AUTO_RUN}, Hotel: {hotel_name_for_auto_run}, Target Week: {target_week_for_run_str}")
+
+    if hotel_name_for_auto_run:
+        print(f"\n [Scheduled Auto] Checking worker availability freshness for hotel: '{hotel_name_for_auto_run}'...")
+        check_stale_availability(db, hotel_name_for_auto_run)
+
+    main(
+        previous_week_schedule_data=previous_week_schedule_data_for_main,
+        run_for_manager_id=MANAGER_ID_FOR_AUTO_RUN,
+        target_week_start_date_str=target_week_for_run_str
+    )
+    print(f"--- Finished scheduled_auto run at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Shift Scheduler")
-    parser.add_argument("--mode", choices=["manual", "auto"], default="manual", help="Run mode: manual or auto")
+    parser = argparse.ArgumentParser(description="Shift Scheduler Orchestrator")
+    parser.add_argument("--mode", 
+                        choices=["manual", "auto"], 
+                        default="auto",
+                        help="Run mode: 'manual' (typically triggered by API) or 'auto' (scheduled task)")
+    parser.add_argument("--manager-id", 
+                        type=int, 
+                        help="Manager ID to run for (required if mode is manual and not called from scheduled_auto)")
+    parser.add_argument("--target-week", 
+                        type=str, 
+                        help="Target week start date (YYYY-MM-DD) for the schedule (required if mode is manual)")
+    
     args = parser.parse_args()
+    print(f"Script started with mode: {args.mode}")
 
     if args.mode == "manual":
-        print("🚀 Manual mode: Running main() once.")
-        main()
+        print(f" Manual mode run initiated.")
+        if not args.manager_id or not args.target_week:
+            print(" For manual mode via CLI, --manager-id and --target-week are recommended.")
+            print("Proceeding with default manager_id=4 and calculated next week if not provided...")
+            manual_manager_id = args.manager_id if args.manager_id else 4
+            
+            manual_target_week = args.target_week
+            if not manual_target_week:
+                today_manual = datetime.now()
+                start_of_this_week_manual = today_manual - timedelta(days=today_manual.weekday() + 1 if today_manual.weekday() != 6 else 0)
+                start_of_this_week_manual = start_of_this_week_manual.replace(hour=0, minute=0, second=0, microsecond=0)
+                manual_target_week_dt = start_of_this_week_manual + timedelta(days=7)
+                manual_target_week = manual_target_week_dt.strftime('%Y-%m-%d')
+                print(f"Defaulting target week to: {manual_target_week}")
+
+            db_manual = connect()
+            prev_data_manual = None
+            if db_manual:
+                manager_for_prev_data = db_manual["people"].find_one({"_id": manual_manager_id})
+                if manager_for_prev_data and manager_for_prev_data.get("Workplace"):
+                    hotel_for_prev_data = manager_for_prev_data.get("Workplace")
+                    last_old = db_manual["result"].find_one(
+                        {"hotelName": hotel_for_prev_data, "Week": "Old"},
+                        sort=[("generatedAt", -1)]
+                    )
+                    if not last_old:
+                        last_old = db_manual["result"].find_one(
+                            {"hotelName": hotel_for_prev_data, "Week": "Now"},
+                            sort=[("generatedAt", -1)]
+                        )
+                    if last_old and last_old.get("schedule"):
+                        prev_data_manual = last_old.get("schedule")
+                        print("Found previous schedule data for manual run constraint.")
+
+            main(previous_week_schedule_data=prev_data_manual,
+                 run_for_manager_id=manual_manager_id, 
+                 target_week_start_date_str=manual_target_week)
+        else:
+            main(run_for_manager_id=args.manager_id, 
+                 target_week_start_date_str=args.target_week)
 
     elif args.mode == "auto":
-        schedule.every().wednesday.at("11:07").do(scheduled_auto)
-        print("⏳ Auto mode active. Will run every Saturday at 20:30.")
+        schedule.every().sunday.at("02:00").do(scheduled_auto)
+        print(f" Auto mode active. Scheduler started. Next run: {schedule.next_run()}")
         while True:
             schedule.run_pending()
-            time.sleep(60)
+            time.sleep(30)
 # cd Python
 # python Constraints.py --mode auto     
