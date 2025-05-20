@@ -13,18 +13,18 @@ const getStartOfWeekFromYYYYMMDD = (yyyyMmDdStr) => {
 };
 
 const getWeekDateRangeStringForDisplay = (startDate) => {
-    if (!startDate) return "תאריך לא זמין";
+    if (!startDate) return "Date not available";
     let start;
     if (typeof startDate === 'string') {
         start = getStartOfWeekFromYYYYMMDD(startDate);
-        if (!start) return "תאריך לא תקין";
+        if (!start) return "Invalid date";
     } else if (startDate instanceof Date) {
         start = new Date(startDate);
     } else {
-        return "תאריך לא ידוע";
+        return "Unknown date";
     }
-    
-    start.setHours(0,0,0,0);
+
+    start.setHours(0, 0, 0, 0);
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
 
@@ -37,35 +37,32 @@ const getWeekDateRangeStringForDisplay = (startDate) => {
     return `${formatDate(start)} - ${formatDate(end)}`;
 };
 
-const buttonStyle = {
-    background: '#286090',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    padding: '8px 18px',
-    margin: '0 6px 8px 0',
-    fontSize: '1em',
-    cursor: 'pointer',
-    minWidth: '120px',
-    fontWeight: 600,
-    boxShadow: '0 2px 6px rgba(40,96,144,0.08)'
-};
-const activeButtonStyle = {
-    ...buttonStyle,
-    background: '#1b4f72',
-    border: '2px solid #1b4f72',
-};
-const toggleButtonStyle = {
-    ...buttonStyle,
-    background: '#117a8b',
-    minWidth: '180px',
+const getWeekRangeFromGeneratedAt = (generatedAt) => {
+    const date = new Date(generatedAt);
+    const day = date.getDay(); // 0 = Sunday, ..., 6 = Saturday
+
+    const daysToAdd = (day === 0) ? 0 : 7 - day;
+    const sunday = new Date(date);
+    sunday.setDate(sunday.getDate() + daysToAdd);
+
+    const saturday = new Date(sunday);
+    saturday.setDate(sunday.getDate() + 6);
+
+    const format = (d) => {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${dd}/${mm}/${yyyy}`;
+    };
+
+    return `${format(sunday)} - ${format(saturday)}`;
 };
 
-const WeekleyScu = () => {
+const WeeklySchedule = () => {
     const navigate = useNavigate();
     const [schedules, setSchedules] = useState({ latest: null, previous: [] });
     const [selectedScheduleKey, setSelectedScheduleKey] = useState("latest");
-    const [idToWorker, setIdToWorker] = useState({});
+    const [idToName, setIdToName] = useState({});
     const [viewMode, setViewMode] = useState("byDay");
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -82,7 +79,7 @@ const WeekleyScu = () => {
     useEffect(() => {
         if (!user || !hotelName) {
             setIsLoading(false);
-            if (!hotelName && user) setError("למשתמש אין מקום עבודה משויך");
+            if (!hotelName && user) setError("User has no assigned workplace");
             return;
         }
 
@@ -92,22 +89,21 @@ const WeekleyScu = () => {
         fetch(`/api/generated-schedules/${encodeURIComponent(hotelName)}`)
             .then((res) => res.json())
             .then((data) => {
-                console.log("Received data:", data); // Debug log
                 setSchedules({
-                    latest: data && data.now ? data.now : null,
-                    previous: Array.isArray(data && data.old) ? data.old : []
+                    latest: data?.now || null,
+                    previous: Array.isArray(data?.old) ? data.old : []
                 });
-                setIdToWorker(data && data.now && data.now.idToWorker ? data.now.idToWorker : {});
+                setIdToName(data.idToName || {});
             })
             .catch((err) => {
-                console.error("שגיאה בטעינת סידורים:", err);
-                setError("טעינת הסידורים נכשלה. אנא נסה שוב מאוחר יותר");
+                console.error("Error loading schedules:", err);
+                setError("Failed to load schedules. Please try again later.");
                 setSchedules({ latest: null, previous: [] });
             })
             .finally(() => {
                 setIsLoading(false);
             });
-    }, []);
+    }, [user, hotelName]);
 
     const getWorkerClass = (name) => {
         if (!name || name === "Empty" || String(name).startsWith("ID: -")) return "worker-missing";
@@ -141,7 +137,7 @@ const WeekleyScu = () => {
                 <table className="schedule-grid">
                     <thead>
                         <tr>
-                            <th>תפקיד</th>
+                            <th>Position</th>
                             {SHIFTS.map(shift => <th key={shift}>{shift}</th>)}
                         </tr>
                     </thead>
@@ -152,11 +148,11 @@ const WeekleyScu = () => {
                                 {SHIFTS.map(shift => {
                                     const entries = (shifts[shift] || []).filter(e => e.position === position);
                                     const names = entries.map(entry => {
-                                        const worker = idToWorker?.[String(entry.worker_id)];
-                                        return worker?.name || `ID: ${entry.worker_id}`;
+                                        return idToName?.[String(entry.worker_id)] ?? `ID: ${entry.worker_id}`;
                                     }).join(', ');
+
                                     return (
-                                        <td key={shift} style={{ color: names.includes('ID:') ? 'red' : 'black' }}>
+                                        <td key={shift} className={getWorkerClass(names)}>
                                             {names}
                                         </td>
                                     );
@@ -170,7 +166,7 @@ const WeekleyScu = () => {
     };
 
     const renderWideTable = (schedule) => {
-        if (!schedule || !schedule.schedule) return <p>לא נמצא סידור</p>;
+        if (!schedule || !schedule.schedule) return <p>No schedule found</p>;
 
         const days = Object.keys(schedule.schedule);
 
@@ -186,11 +182,11 @@ const WeekleyScu = () => {
 
             return (
                 <div className="day-section" key={shift}>
-                    <h3>{shift} משמרת – תצוגת שבוע</h3>
+                    <h3>{shift} Shift – Weekly View</h3>
                     <table className="schedule-grid">
                         <thead>
                             <tr>
-                                <th>תפקיד</th>
+                                <th>Position</th>
                                 {days.map(day => <th key={day}>{day}</th>)}
                             </tr>
                         </thead>
@@ -201,11 +197,11 @@ const WeekleyScu = () => {
                                     {days.map(day => {
                                         const entries = (schedule.schedule[day][shift] || []).filter(e => e.position === position);
                                         const names = entries.map(entry => {
-                                            const worker = idToWorker?.[String(entry.worker_id)];
+                                            const worker = idToName?.[String(entry.worker_id)];
                                             return worker?.name || `ID: ${entry.worker_id}`;
                                         }).join(', ');
                                         return (
-                                            <td key={day} style={{ color: names.includes('ID:') ? 'red' : 'black' }}>
+                                            <td key={day} className={getWorkerClass(names)}>
                                                 {names}
                                             </td>
                                         );
@@ -219,55 +215,55 @@ const WeekleyScu = () => {
         });
     };
 
-    if (isLoading) return <div className="loading-message">טוען סידורים...</div>;
+    if (isLoading) return <div className="loading-message">Loading schedules...</div>;
     if (error) return <div className="error-message">{error}</div>;
-    if (!hotelName && user) return <div className="error-message">למשתמש אין מקום עבודה משויך</div>;
+    if (!hotelName && user) return <div className="error-message">User has no assigned workplace</div>;
     if (!user) return null;
 
     return (
         <div className="content-wrapper weekly-schedule-page">
-            <h1>צפייה בסידורי עבודה - {hotelName}</h1>
+            <h1>Work Schedule View - {hotelName}</h1>
+            <button onClick={() => navigate(-1)} className="btn-back">
+                ← Back
+            </button>
 
-            <div className="schedule-selection-controls" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+            <div className="button-fixed-right">
                 <button
                     onClick={() => handleSelectSchedule("latest")}
-                    style={selectedScheduleKey === "latest" ? activeButtonStyle : buttonStyle}
+                    className={selectedScheduleKey === "latest" ? "active" : ""}
                     disabled={!schedules.latest}
                 >
-                    הצג סידור נוכחי
-                    {schedules.latest?.relevantWeekStartDate && 
+                    Show Current Schedule
+                    {schedules.latest?.relevantWeekStartDate &&
                         ` (${getWeekDateRangeStringForDisplay(schedules.latest.relevantWeekStartDate)})`}
                 </button>
 
-                {previousSchedules.length > 0 && <span style={{margin: "0 10px", fontWeight: 600}}>| הצג סידורים קודמים:</span>}
                 {previousSchedules.map((prevSchedule, index) => (
                     <button
                         key={prevSchedule._id || index}
                         onClick={() => handleSelectSchedule(index)}
-                        style={selectedScheduleKey === index ? activeButtonStyle : buttonStyle}
+                        className={selectedScheduleKey === index ? "active" : ""}
                     >
-                        שבוע {index + 1} אחורה
-                        {prevSchedule.relevantWeekStartDate && 
-                            ` (${getWeekDateRangeStringForDisplay(prevSchedule.relevantWeekStartDate)})`}
+                        {index + 1} Week Back{prevSchedule.relevantWeekStartDate && ` (${getWeekDateRangeStringForDisplay(prevSchedule.relevantWeekStartDate)})`}
                     </button>
                 ))}
 
                 {currentScheduleToDisplay && (
                     <button
                         onClick={() => setViewMode(prevMode => prevMode === "byDay" ? "wide" : "byDay")}
-                        style={toggleButtonStyle}
+                        className="btn btn-toggle"
                     >
-                        {viewMode === "byDay" ? "🔄 הצג תצוגה שבועית רחבה" : "📅 הצג תצוגה יומית"}
+                        {viewMode === "byDay" ? "🔄 Show by Week" : "📅 Show by Day"}
                     </button>
                 )}
             </div>
 
             {currentScheduleToDisplay?.schedule && (
                 <div className="schedule-content">
-                    <p style={{textAlign: 'center', fontSize: '0.9em', color: '#555'}}>
-                        נוצר בתאריך: {new Date(currentScheduleToDisplay.generatedAt).toLocaleString('he-IL')}
-                        {currentScheduleToDisplay.status === 'partial' && 
-                            <span style={{color: 'orange', marginLeft: '10px'}}>(סידור חלקי)</span>}
+                    <p style={{ textAlign: 'center', fontSize: '0.9em', color: '#555' }}>
+                        Schedule for: {getWeekRangeFromGeneratedAt(currentScheduleToDisplay.generatedAt)}
+                        {currentScheduleToDisplay.status === 'partial' &&
+                            <span style={{ color: 'orange', marginLeft: '10px' }}>(Partial schedule)</span>}
                     </p>
                     {viewMode === "byDay" ? (
                         Object.entries(currentScheduleToDisplay.schedule).map(([day, shifts]) =>
@@ -282,4 +278,4 @@ const WeekleyScu = () => {
     );
 };
 
-export default WeekleyScu;
+export default WeeklySchedule;

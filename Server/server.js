@@ -294,7 +294,7 @@ app.get("/api/generated-schedules/:hotelName", (req, res) => {
           success: true,
           now: nowSchedule,
           old: oldSchedules || [],
-          idToWorker: nowSchedule?.idToWorker || {}
+          idToName: nowSchedule?.idToName || {}
         });
       });
   });

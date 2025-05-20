@@ -19,39 +19,9 @@ body {
 h1 {
   text-align: center;
   margin-bottom: 30px;
-  color: #1e3a8a;
+  color: #2b3c57;
 }
 
-/* כפתורים בצד ימין */
-.button-fixed-right {
-  position: fixed;
-  top: 100px;
-  right: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 1000;
-}
-
-.button-fixed-right button {
-  padding: 10px 20px;
-  background-color: #1e40af;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  width: 200px;
-}
-
-.button-fixed-right button:hover {
-  background-color: #2563eb;
-}
-
-.button-fixed-right button.active {
-  background-color: #f97316;
-}
 
 /* טבלת משמרות לפי יום */
 .day-section {
@@ -60,7 +30,7 @@ h1 {
 
 .day-section h3 {
   text-align: center;
-  color: #1e3a8a;
+  color: #2b3c57;
   margin-bottom: 10px;
 }
 
@@ -79,7 +49,7 @@ h1 {
 }
 
 .schedule-grid th {
-  background-color: #1e40af;
+  background-color: #2b3c57;
   color: white;
 }
 
@@ -96,4 +66,37 @@ h1 {
 .highlight-user {
   color: green;
   font-weight: bold;
+}
+
+
+
+/* כפתורים בצד ימין */
+.button-fixed-right {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1000;
+}
+
+.button-fixed-right button {
+  padding: 10px 20px;
+  background-color: #2b3c57;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  width: 200px;
+}
+
+.button-fixed-right button:hover {
+  background-color: #3c5894;
+}
+
+.button-fixed-right button.active {
+  background-color: #f97316;
 }
