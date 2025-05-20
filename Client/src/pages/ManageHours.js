@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import '../styles/ManageHours.css';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const shifts = ['Morning', 'Afternoon', 'Evening']; // תיקנתי רווח שהיה פה
+const shifts = ['Morning', 'Afternoon', 'Evening'];
 const defaultPositions = ['Control', 'Patrol', 'Entrance Security', 'Shift Supervisor'];
 
 const createInitialSchedule = () => {
@@ -24,238 +24,243 @@ const createInitialSchedule = () => {
   return schedule;
 };
 
-// פונקציות עזר לתאריכים - מחוץ לקומפוננטה
 const getStartOfWeek = (date = new Date()) => {
   const d = new Date(date);
-  const dayOfWeek = d.getDay(); // Sunday - 0, Monday - 1, etc.
+  const dayOfWeek = d.getDay();
   const diffToSunday = d.getDate() - dayOfWeek;
-  d.setHours(0, 0, 0, 0); // איפוס שעה ליתר ביטחון
+  d.setHours(0, 0, 0, 0);
   return new Date(d.setDate(diffToSunday));
 };
 
 const getWeekDateRangeString = (startDate) => {
-  if (!startDate) return "טוען טווח שבועי...";
+  if (!startDate) return "Loading date range...";
   const start = new Date(startDate);
   const end = new Date(start);
-  end.setDate(start.getDate() + 6); // Saturday
-
+  end.setDate(start.getDate() + 6);
   const formatDate = (dateObj) => {
     const day = String(dateObj.getDate()).padStart(2, '0');
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
     const year = dateObj.getFullYear();
     return `${day}/${month}/${year}`;
   };
-  return `סידור לשבוע: ${formatDate(start)} - ${formatDate(end)}`;
+  return `Planning Week: ${formatDate(start)} - ${formatDate(end)}`;
 };
-
 
 const ManageHours = () => {
   const navigate = useNavigate();
-
-  // State לניהול ה-schedule הכללי
   const [schedule, setSchedule] = useState(createInitialSchedule());
-
-  // State לניהול איזה "קטע" של 4 ימים מוצג כרגע מהמערך 'days'
   const [currentDayViewIndex, setCurrentDayViewIndex] = useState(0);
-
-  // --- חדש: State לניהול תאריך ההתחלה של השבוע המוצג ---
-  const [displayedWeekStartDate, setDisplayedWeekStartDate] = useState(null);
+  const [targetWeekForPlanning, setTargetWeekForPlanning] = useState(null);
 
   const user = JSON.parse(localStorage.getItem('user'));
   const hotelName = user ? user.Workplace : '';
-
-  // המשתנה הזה עדיין שולט בתצוגת 4 הימים
   const visibleDays = days.slice(currentDayViewIndex, currentDayViewIndex + 4);
 
-  // useEffect לאתחול ראשוני של displayedWeekStartDate
   useEffect(() => {
-    if (displayedWeekStartDate === null) { // ירוץ רק פעם אחת בהתחלה
-      const today = new Date();
-      const startOfThisCalendarWeek = getStartOfWeek(today);
+    const today = new Date();
+    const startOfThisCalendarWeek = getStartOfWeek(today);
+    const nextCalendarWeekStart = new Date(startOfThisCalendarWeek);
+    nextCalendarWeekStart.setDate(startOfThisCalendarWeek.getDate() + 7);
+    setTargetWeekForPlanning(nextCalendarWeekStart);
+  }, []);
 
-      const initialStartDateToDisplay = new Date(startOfThisCalendarWeek);
-      // נניח שברירת המחדל היא להציג את "השבוע הבא"
-      initialStartDateToDisplay.setDate(startOfThisCalendarWeek.getDate() + 7);
-
-      setDisplayedWeekStartDate(initialStartDateToDisplay);
-      setCurrentDayViewIndex(0); // חשוב לאפס את תצוגת הימים
-    }
-  }, []); // התלות הריקה מבטיחה ריצה חד פעמית
-
-  useEffect(() => {
+  const fetchCurrentRequirements = useCallback(() => {
     if (hotelName) {
-      axios.get(`/get-schedule/${hotelName}`)
+      axios.get(`/get-schedule/${encodeURIComponent(hotelName)}`)
         .then(res => {
-          if (res.data && typeof res.data.schedule === 'object' && res.data.schedule !== null) {
+          if (res.data && typeof res.data.schedule === 'object' && res.data.schedule !== null && Object.keys(res.data.schedule).length > 0) {
             setSchedule(res.data.schedule);
           } else {
-            console.warn("Received invalid schedule data from server, using initial schedule.");
             setSchedule(createInitialSchedule());
           }
         })
-        .catch((err) => {
-          console.error("Error fetching schedule data:", err);
-          setSchedule(createInitialSchedule());
-        });
-    } else {
-      // הימנעי מ-alert אם המשתמש עדיין לא נטען מ-localStorage
-      if (user && !hotelName) { // רק אם יש משתמש אבל אין לו שם מלון
-        alert("Hotel name not found in localStorage for the current user!");
-      }
-    }
-  }, [hotelName]); // כרגע תלוי רק ב-hotelName. בעתיד: [hotelName, displayedWeekStartDate]
+        .catch(() => { setSchedule(createInitialSchedule()); });
+    } else { if (user && !hotelName) { alert("Hotel name not found!"); } }
+  }, [hotelName, user]);
+
+  useEffect(() => {
+    fetchCurrentRequirements();
+  }, [fetchCurrentRequirements]);
 
   const handleChange = (shift, position, day, weaponType, value) => {
-    // לוגיקת ה-handleChange שלך נשארת כפי שהיא
-    if (position === 'Shift Supervisor' && weaponType === 'weapon' && value < 1) {
-      value = 1; // אחמ"ש תמיד צריך לפחות 1 במשבצת הנשק שלו
+    const numericValue = parseInt(value, 10);
+    let finalValue = isNaN(numericValue) ? 0 : numericValue;
+    if (position === 'Shift Supervisor' && weaponType === 'weapon' && finalValue < 1) {
+      finalValue = 1;
     }
-    setSchedule(prev => {
-      // ודאי שהנתיבים קיימים לפני שאת מנסה לגשת אליהם
-      const newShift = prev[shift] ? { ...prev[shift] } : {};
-      const newPosition = newShift[position] ? { ...newShift[position] } : {};
-      const newDay = newPosition[day] ? { ...newPosition[day] } : {};
-
-      return {
-        ...prev,
-        [shift]: {
-          ...newShift,
-          [position]: {
-            ...newPosition,
-            [day]: {
-              ...newDay,
-              [weaponType]: parseInt(value, 10) || 0 // המרה למספר וערך ברירת מחדל
-            }
+    setSchedule(prev => ({
+      ...prev,
+      [shift]: {
+        ...prev[shift],
+        [position]: {
+          ...prev[shift][position],
+          [day]: {
+            ...prev[shift][position][day],
+            [weaponType]: finalValue
           }
         }
-      };
-    });
+      }
+    }));
   };
 
-  // בתוך הקומפוננטה ManageHours, לפני ה-return
-
-  const handleGoToPreviousWeek = () => {
-    if (displayedWeekStartDate) { // ודא שיש תאריך קיים
-      const newStartDate = new Date(displayedWeekStartDate);
-      newStartDate.setDate(displayedWeekStartDate.getDate() - 7); // מחסירים 7 ימים
-      setDisplayedWeekStartDate(newStartDate);
-      setCurrentDayViewIndex(0); // מאפסים את תצוגת 4 הימים להתחלה של השבוע החדש
+  const handleGoToPreviousPlanningWeek = () => {
+    if (targetWeekForPlanning) {
+      const newStartDate = new Date(targetWeekForPlanning);
+      newStartDate.setDate(targetWeekForPlanning.getDate() - 7);
+      setTargetWeekForPlanning(newStartDate);
+      setCurrentDayViewIndex(0);
     }
   };
 
-  const handleGoToNextWeek = () => {
-    if (displayedWeekStartDate) { // ודא שיש תאריך קיים
-      const newStartDate = new Date(displayedWeekStartDate);
-      newStartDate.setDate(displayedWeekStartDate.getDate() + 7); // מוסיפים 7 ימים
-      setDisplayedWeekStartDate(newStartDate);
-      setCurrentDayViewIndex(0); // מאפסים את תצוגת 4 הימים להתחלה של השבוע החדש
+  const handleGoToNextPlanningWeek = () => {
+    if (targetWeekForPlanning) {
+      const newStartDate = new Date(targetWeekForPlanning);
+      newStartDate.setDate(targetWeekForPlanning.getDate() + 7);
+      setTargetWeekForPlanning(newStartDate);
+      setCurrentDayViewIndex(0);
     }
   };
 
   const addPosition = (shift) => {
-    // לוגיקת addPosition שלך נשארת כפי שהיא
-    const newPositionName = prompt("Enter new position name:"); // שיניתי שם משתנה
-    if (newPositionName) {
-      setSchedule(prev => {
-        const newShiftData = { ...(prev[shift] || {}) };
-        newShiftData[newPositionName] = days.reduce((acc, day) => {
-          acc[day] = { noWeapon: 0, weapon: 0 };
-          return acc;
-        }, {});
-        return { ...prev, [shift]: newShiftData };
-      });
+    const newPosition = prompt("Enter new position name:");
+    if (newPosition) {
+      setSchedule(prev => ({
+        ...prev,
+        [shift]: {
+          ...prev[shift],
+          [newPosition]: days.reduce((acc, day) => ({
+            ...acc,
+            [day]: { noWeapon: 0, weapon: 0 }
+          }), {})
+        }
+      }));
     }
   };
 
   const removePosition = (shift, position) => {
-    // לוגיקת removePosition שלך נשארת כפי שהיא
     setSchedule(prev => {
-      const updatedSchedule = { ...prev };
-      if (updatedSchedule[shift]) {
-        const updatedShift = { ...updatedSchedule[shift] };
-        delete updatedShift[position];
-        updatedSchedule[shift] = updatedShift;
-      }
-      return updatedSchedule;
+      const updated = { ...prev };
+      delete updated[shift][position];
+      return updated;
     });
   };
 
   const saveSchedule = () => {
-    // לוגיקת saveSchedule שלך נשארת כפי שהיא כרגע
-    // בעתיד, אולי נרצה לשלוח גם את displayedWeekStartDate לשרת
     if (hotelName) {
-      axios.post(`/save-schedule/${hotelName}`, { schedule })
+      axios.post(`/save-schedule/${encodeURIComponent(hotelName)}`, { schedule })
         .then(() => {
-          alert("Workplace restrictions saved successfully!");
-          console.log("Data for workplace saved successfully.");
-          navigate("/home");
+          alert(`Requirements saved (for week starting ${targetWeekForPlanning ? targetWeekForPlanning.toLocaleDateString('en-US') : 'unknown'})`);
         })
-        .catch(() => alert("Error saving schedule."));
-    } else {
-      alert("Hotel name not found in localStorage for saving!");
+        .catch(() => alert("Error saving schedule requirements."));
+    } else { alert("Hotel name not found."); }
+  };
+
+  const handleRunScheduler = async () => {
+    if (!hotelName || !targetWeekForPlanning) {
+      alert("Hotel name or target planning week is not set.");
+      return;
+    }
+    const confirmRun = window.confirm(`Create schedule for week starting ${targetWeekForPlanning.toLocaleDateString('en-US')}? 
+Make sure you have saved the current requirements.`);
+    
+    if (confirmRun) {
+      try {
+        const targetDateString = targetWeekForPlanning.toISOString().split('T')[0];
+        console.log(`Requesting to run scheduler for hotel: ${hotelName}, target week: ${targetDateString}`);
+        const response = await axios.post(`/api/run-scheduler/${encodeURIComponent(hotelName)}`, {
+          targetWeekStartDate: targetDateString
+        });
+        alert(response.data.message || "Scheduler request sent successfully.");
+      } catch (error) {
+        const errorMsg = error.response?.data?.stderr || error.response?.data?.message || error.message || "Unknown error";
+        alert(`Error running scheduler: ${errorMsg}`);
+      }
     }
   };
+
+  if (!user) { return <div>Loading user data...</div>; }
+  if (!hotelName) { return <div>No workplace assigned to user.</div>; }
 
   return (
     <div className="manage-hours-container">
       <div className="manage-hours-form">
-        <h2>Manage Schedule - {hotelName}</h2>
-        <div
-          className="week-navigation-controls"
-          style={{
-            display: 'flex',
-            justifyContent: 'space-around', // או space-between, או center
-            alignItems: 'center',
-            margin: '20px 0',
-            padding: '10px',
-            border: '1px solid #ddd', // שיניתי צבע גבול קצת
-            borderRadius: '5px'
-          }}
-        >
-          <button
-            onClick={handleGoToPreviousWeek}
-            style={{ backgroundColor:'blue', padding: '8px 15 px', fontSize: '1em' , color:' white' }}
-          >
-            previos week
-          </button>
+        <h2>Manage Requirements - {hotelName}</h2>
 
-          {displayedWeekStartDate && (
-            <h2 style={{ textAlign: 'center', margin: '20px 0', fontSize: '1.6em', color: '#337ab7' }}>
-              {getWeekDateRangeString(displayedWeekStartDate)}
-            </h2>
+        <div className="week-navigation-controls" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '20px 0' }}>
+          <button 
+            onClick={handleGoToPreviousPlanningWeek} 
+            style={{ 
+              margin: '0 10px',
+              backgroundColor: '#286090',
+              color: 'white',
+              border: 'none',
+              padding: '8px 15px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            {'<<'} Previous Week
+          </button>
+          {targetWeekForPlanning && (
+            <h3 style={{ margin: '0 10px', fontSize: '1.4em', color: '#286090' }}>
+              {getWeekDateRangeString(targetWeekForPlanning)}
+            </h3>
           )}
-
-          <button
-            onClick={handleGoToNextWeek}
-            style={{ backgroundColor:'blue',padding: '8px 15px', fontSize: '1em' , color:'white'}} // סגנון לדוגמה
+          <button 
+            onClick={handleGoToNextPlanningWeek} 
+            style={{ 
+              margin: '0 10px',
+              backgroundColor: '#286090',
+              color: 'white',
+              border: 'none',
+              padding: '8px 15px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
           >
-            next week
+            Next Week {'>>'}
           </button>
-
-
         </div>
 
-
-
         {shifts.map(shift => (
-          <div key={shift} className="shift-section"> {/* הוספתי class לכל מקטע משמרת */}
-            <h3>{shift} Shift</h3>
-
-            {/* כפתורי ניווט הימים (⬅️, ➡️) - נשארים לשליטה על תצוגת 4 הימים */}
-            <div className="day-view-navigation"> {/* הוספתי class */}
+          <div key={shift} className="shift-section">
+            <h4>{shift} Shift</h4>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
               <button
                 className="day-nav"
                 onClick={() => setCurrentDayViewIndex(prev => Math.max(prev - 4, 0))}
                 disabled={currentDayViewIndex === 0}
+                style={{
+                  backgroundColor: '#286090',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 15px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  margin: '0 5px',
+                  opacity: currentDayViewIndex === 0 ? 0.5 : 1
+                }}
               >
-                <span role="img" aria-label="Previous 4 Days">⬅️</span>
+                <span role="img" aria-label="Previous Day">⬅️</span>
               </button>
               <button
                 className="day-nav"
                 onClick={() => setCurrentDayViewIndex(prev => Math.min(prev + 4, days.length - 4))}
                 disabled={currentDayViewIndex >= days.length - 4}
+                style={{
+                  backgroundColor: '#286090',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 15px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  margin: '0 5px',
+                  opacity: currentDayViewIndex >= days.length - 4 ? 0.5 : 1
+                }}
               >
-                <span role="img" aria-label="Next 4 Days">➡️</span>
+                <span role="img" aria-label="Next Day">➡️</span>
               </button>
             </div>
 
@@ -275,51 +280,91 @@ const ManageHours = () => {
                   ))}
                 </tr>
               </thead>
+
               <tbody>
-                {/* חשוב לוודא ש-schedule[shift] קיים לפני הפעלת Object.keys */}
-                {schedule && schedule[shift] && Object.keys(schedule[shift]).map((position) => (
+                {Object.keys(schedule[shift] || {}).map((position) => (
                   <tr key={position}>
                     <td>{position}</td>
-                    {visibleDays.map(day => {
-                      // בודקים אם הנתיב המלא קיים באובייקט ה-schedule
-                      const dayData = schedule[shift]?.[position]?.[day];
-                      const noWeaponValue = dayData?.noWeapon || 0;
-                      const weaponValue = dayData?.weapon || 0;
-
-                      return (
-                        <React.Fragment key={`${shift}-${position}-${day}`}>
-                          <td className={noWeaponValue > 0 ? 'selected-row' : ''}>
-                            {position === 'Shift Supervisor' ? <span> </span> : ( // אם זה אחמ"ש, לא מציגים input ל-noWeapon
-                              <input
-                                type="number"
-                                min="0"
-                                value={noWeaponValue}
-                                onChange={(e) => handleChange(shift, position, day, 'noWeapon', e.target.value)}
-                              />
-                            )}
-                          </td>
-                          <td className={weaponValue > 0 ? 'selected-row' : ''}>
+                    {visibleDays.map(day => (
+                      <React.Fragment key={`${shift}-${position}-${day}`}>
+                        <td className={schedule[shift]?.[position]?.[day]?.noWeapon > 0 ? 'selected-row' : ''}>
+                          {position === 'Shift Supervisor' ? null : (
                             <input
                               type="number"
-                              min={position === 'Shift Supervisor' ? 1 : 0}
-                              // אם זה אחמ"ש והערך 0, קובעים ל-1 (כי הוא חייב להיות משובץ)
-                              value={(position === 'Shift Supervisor' && weaponValue === 0) ? 1 : weaponValue}
-                              onChange={(e) => handleChange(shift, position, day, 'weapon', e.target.value)}
+                              min="0"
+                              value={schedule[shift]?.[position]?.[day]?.noWeapon || 0}
+                              onChange={(e) => handleChange(shift, position, day, 'noWeapon', parseInt(e.target.value) || 0)}
                             />
-                          </td>
-                        </React.Fragment>
-                      );
-                    })}
+                          )}
+                        </td>
+                        <td className={schedule[shift]?.[position]?.[day]?.weapon > 0 ? 'selected-row' : ''}>
+                          <input
+                            type="number"
+                            min={position === 'Shift Supervisor' ? 1 : 0}
+                            value={(position === 'Shift Supervisor' && (schedule[shift]?.[position]?.[day]?.weapon || 0) === 0) ? 1 : (schedule[shift]?.[position]?.[day]?.weapon || 0)}
+                            onChange={(e) => handleChange(shift, position, day, 'weapon', parseInt(e.target.value) || 0)}
+                          />
+                        </td>
+                      </React.Fragment>
+                    ))}
                     <td><button className="remove-position" onClick={() => removePosition(shift, position)}>X</button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <button className="add-position" onClick={() => addPosition(shift)}>+ Add Position</button>
+
+            <button 
+              className="add-position" 
+              onClick={() => addPosition(shift)}
+              style={{
+                backgroundColor: '#286090',
+                color: 'white',
+                border: 'none',
+                padding: '8px 15px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                margin: '10px 0'
+              }}
+            >
+              + Add Position
+            </button>
           </div>
         ))}
 
-        <button className="save-all" onClick={saveSchedule}>Save All Changes</button> {/* שיניתי טקסט */}
+        <div style={{ textAlign: 'center', marginTop: '30px', display: 'flex', justifyContent: 'space-around' }}>
+          <button 
+            className="save-all" 
+            onClick={saveSchedule}
+            style={{
+              backgroundColor: '#286090',
+              color: 'white',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              minWidth: '200px'
+            }}
+          >
+            Save Requirements
+          </button>
+          <button 
+            onClick={handleRunScheduler} 
+            className="run-scheduler-button"
+            style={{
+              backgroundColor: '#286090',
+              color: 'white',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              minWidth: '200px'
+            }}
+          >
+            Create Schedule for Current Week
+          </button>
+        </div>
       </div>
     </div>
   );
