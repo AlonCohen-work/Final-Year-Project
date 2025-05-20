@@ -93,7 +93,7 @@ app.post("/EmployeeRequest", (req, res) => {
 
     people_coll.updateOne(
       { _id: numericId },
-      { $set: { selectedDays } },
+      { $set: { selectedDays: selectedDays, availabilityLastUpdated: new Date()  } },
       (updateErr) => {
         if (updateErr) {
           console.error("Error during update:", updateErr);
