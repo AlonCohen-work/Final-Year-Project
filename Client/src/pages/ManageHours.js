@@ -82,9 +82,6 @@ const ManageHours = () => {
     }
   }, []); // התלות הריקה מבטיחה ריצה חד פעמית
 
-  // useEffect לטעינת ה-schedule מהשרת
-  // כרגע, הוא עדיין טוען את ה-schedule הכללי של המלון.
-  // בהמשך, נגרום לו להיות תלוי ב-displayedWeekStartDate.
   useEffect(() => {
     if (hotelName) {
       axios.get(`/get-schedule/${hotelName}`)
@@ -103,7 +100,7 @@ const ManageHours = () => {
     } else {
       // הימנעי מ-alert אם המשתמש עדיין לא נטען מ-localStorage
       if (user && !hotelName) { // רק אם יש משתמש אבל אין לו שם מלון
-          alert("Hotel name not found in localStorage for the current user!");
+        alert("Hotel name not found in localStorage for the current user!");
       }
     }
   }, [hotelName]); // כרגע תלוי רק ב-hotelName. בעתיד: [hotelName, displayedWeekStartDate]
@@ -133,6 +130,26 @@ const ManageHours = () => {
         }
       };
     });
+  };
+
+  // בתוך הקומפוננטה ManageHours, לפני ה-return
+
+  const handleGoToPreviousWeek = () => {
+    if (displayedWeekStartDate) { // ודא שיש תאריך קיים
+      const newStartDate = new Date(displayedWeekStartDate);
+      newStartDate.setDate(displayedWeekStartDate.getDate() - 7); // מחסירים 7 ימים
+      setDisplayedWeekStartDate(newStartDate);
+      setCurrentDayViewIndex(0); // מאפסים את תצוגת 4 הימים להתחלה של השבוע החדש
+    }
+  };
+
+  const handleGoToNextWeek = () => {
+    if (displayedWeekStartDate) { // ודא שיש תאריך קיים
+      const newStartDate = new Date(displayedWeekStartDate);
+      newStartDate.setDate(displayedWeekStartDate.getDate() + 7); // מוסיפים 7 ימים
+      setDisplayedWeekStartDate(newStartDate);
+      setCurrentDayViewIndex(0); // מאפסים את תצוגת 4 הימים להתחלה של השבוע החדש
+    }
   };
 
   const addPosition = (shift) => {
@@ -178,18 +195,47 @@ const ManageHours = () => {
       alert("Hotel name not found in localStorage for saving!");
     }
   };
-  
+
   return (
     <div className="manage-hours-container">
       <div className="manage-hours-form">
         <h2>Manage Schedule - {hotelName}</h2>
+        <div
+          className="week-navigation-controls"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-around', // או space-between, או center
+            alignItems: 'center',
+            margin: '20px 0',
+            padding: '10px',
+            border: '1px solid #ddd', // שיניתי צבע גבול קצת
+            borderRadius: '5px'
+          }}
+        >
+          <button
+            onClick={handleGoToPreviousWeek}
+            style={{ backgroundColor:'blue', padding: '8px 15 px', fontSize: '1em' , color:' white' }}
+          >
+            previos week
+          </button>
 
-        {/* הצגת טווח התאריכים של השבוע */}
-        {displayedWeekStartDate && (
-          <h2 style={{ textAlign: 'center', margin: '20px 0', fontSize: '1.6em', color: '#337ab7' }}>
-            {getWeekDateRangeString(displayedWeekStartDate)}
-          </h2>
-        )}
+          {displayedWeekStartDate && (
+            <h2 style={{ textAlign: 'center', margin: '20px 0', fontSize: '1.6em', color: '#337ab7' }}>
+              {getWeekDateRangeString(displayedWeekStartDate)}
+            </h2>
+          )}
+
+          <button
+            onClick={handleGoToNextWeek}
+            style={{ backgroundColor:'blue',padding: '8px 15px', fontSize: '1em' , color:'white'}} // סגנון לדוגמה
+          >
+            next week
+          </button>
+
+
+        </div>
+
+
 
         {shifts.map(shift => (
           <div key={shift} className="shift-section"> {/* הוספתי class לכל מקטע משמרת */}
