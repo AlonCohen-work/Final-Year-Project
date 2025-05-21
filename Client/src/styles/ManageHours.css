@@ -21,70 +21,87 @@ body {
   box-sizing: border-box;
 }
 
-.manage-hours-form h2, .manage-hours-form h3 {
+.manage-hours-form h2,
+.manage-hours-form h3 {
   text-align: center;
   color: #333;
   margin-bottom: 15px;
 }
 
+.shift-title {
+  text-align: center;
+  font-size: 1.5rem;
+  margin: 1em 0 0.5em 0;
+  width: 100%;
+  font-weight: bold;
+}
+
+.table-wrapper {
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  margin: 20px 0;
+}
+
 .schedule-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 20px;
 }
 
 .schedule-table th,
 .schedule-table td {
   border: 1px solid #ccc;
-  padding: 10px;
+  padding: 14px 10px;
   text-align: center;
+  font-size: 0.95rem;
 }
 
 .schedule-table th {
-  background-color: #1976d2;
+  background-color: #0c4279;
   color: white;
+  font-weight: 600;
+  border: 1px solid #bbb;
 }
 
 .schedule-table tbody tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background-color: #f4f9fd;
 }
 
 .schedule-table tbody tr:hover {
-  background-color: #e3f2fd;
+  background-color: #e1f5fe;
+  transition: background-color 0.2s ease-in-out;
 }
 
 input[type="number"] {
   width: 60px;
-  padding: 4px;
+  padding: 6px;
   border-radius: 4px;
   border: 1px solid #ccc;
 }
 
 button {
   cursor: pointer;
-  padding: 6px 12px;
+  padding: 10px 20px;
   margin: 5px;
   border: none;
   border-radius: 4px;
-  color: white;
+  color: rgb(255, 255, 255);
   transition: background-color 0.3s ease;
+  font-size: 16px;
 }
 
-button.save-all {
-  background-color: #388e3c;
-  display: block;
-  margin: 20px auto;
+button.add-position,
+button.save-all,
+.run-scheduler-button,
+button.save-requirements-button {
+  background-color: #0c4279;
+  min-width: 180px;
 }
 
-button.save-all:hover {
-  background-color: #2e7d32;
-}
-
-button.add-position {
-  background-color: #1976d2;
-}
-
-button.add-position:hover {
+button.add-position:hover,
+button.save-all:hover,
+.run-scheduler-button:hover,
+button.save-requirements-button:hover {
   background-color: #1565c0;
 }
 
@@ -95,22 +112,48 @@ button.remove-position {
 button.remove-position:hover {
   background-color: #c62828;
 }
+.bottom-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px; /* רווח בין הכפתורים */
+  margin-top: 20px;
+}
+.shift-title {
+  font-size: 1.8em;
+  text-align: center;
+  color: #176fc6;
+  margin-bottom: 10px;
+}
 
-button.day-nav {
-  background-color: #1976d2;
-  color: white;
-  padding: 6px 10px;
-  margin: 0 5px;
+.week-navigation-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 20px 0;
+}
+
+
+
+.day-nav-controls {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.day-nav {
+  margin: 0 10px;
+  background-color: #1668b9;
+  color: #ffffff;
   border: none;
-  border-radius: 4px;
+  padding: 8px 15px;
+  border-radius: 50%;
   cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-button.day-nav:disabled {
-  background-color: #90caf9;
+.day-nav:disabled {
+  background-color: #ccc;
   cursor: not-allowed;
-}
-
-.selected-row {
-  background-color: #e8f5e9;
 }
