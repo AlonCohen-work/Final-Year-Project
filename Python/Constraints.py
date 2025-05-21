@@ -316,11 +316,16 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
         "notes": partial_notes,
         "Week": "Now",
         "relevantWeekStartDate": target_week_str,
-        "idToWorker": {str(k): v for k, v in id_to_worker.items()},
         "idToName": {str(k): v["name"] for k, v in id_to_worker.items() if "name" in v}
     }
 
-    db["result"].insert_one(result_doc)
+    db["result"].replace_one(
+    {
+        "hotelName": result["hotel"]["name"],
+        "relevantWeekStartDate": target_week_str
+    },
+    result_doc,
+    upsert=True)
     print(f"Schedule saved to MongoDB (collection: result) for week {target_week_str}")
 def scheduled_auto():
     print(f"\n--- Starting scheduled_auto run at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")

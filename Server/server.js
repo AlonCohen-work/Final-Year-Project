@@ -128,8 +128,7 @@ app.get("/get-schedule/:hotelName", (req, res) => {
     res.json({ schedule: data.schedule || {} });
   });
 });
-// server.js
-// ...
+
 app.post("/save-schedule/:hotelName", (req, res) => {
   const hotelNameFromParam = req.params.hotelName; // שיניתי את שם המשתנה כדי שיהיה ברור שהוא מה-URL
   const { schedule } = req.body;
@@ -138,22 +137,19 @@ app.post("/save-schedule/:hotelName", (req, res) => {
     return res.status(400).json({ success: false, message: "Schedule data is missing or invalid." });
   }
 
-  // שלב 1: נסי למצוא את הרשומה קודם (לצורך אבחון)
   console.log(`Attempting to find workplace in Workplace_coll: "${hotelNameFromParam}"`);
   Workplace_coll.findOne({ hotelName: hotelNameFromParam }, (findErr, foundDoc) => {
     if (findErr) {
       console.error(`Database error while trying to find workplace "${hotelNameFromParam}":`, findErr);
       return res.status(500).json({ success: false, message: "Error checking if workplace exists." });
     }
-
     if (foundDoc) {
       console.log(`Workplace "${hotelNameFromParam}" FOUND by findOne. Document:`, JSON.stringify(foundDoc, null, 2));
     } else {
       console.log(`Workplace "${hotelNameFromParam}" WAS NOT FOUND by findOne.`);
     }
-
-    // שלב 2: בצעי את העדכון (או היצירה אם upsert)
     console.log(`Now attempting to updateOne for workplace: "${hotelNameFromParam}"`);
+
     Workplace_coll.updateOne(
       { hotelName: hotelNameFromParam }, // התנאי לחיפוש
       { $set: { schedule: schedule } },    // הנתונים לעדכון
@@ -166,13 +162,6 @@ app.post("/save-schedule/:hotelName", (req, res) => {
         
         // הדפסת התוצאה הגולמית מ-mongojs
         console.log(`Raw update result from mongojs for "${hotelNameFromParam}":`, JSON.stringify(result, null, 2));
-
-        // בדיקת הצלחה - מותאמת יותר לתוצאות ש-mongojs מחזיר בדרך כלל
-        // עבור mongojs:
-        // result.ok === 1 מציין שהפעולה הגיעה לשרת והוא עיבד אותה.
-        // result.n הוא מספר הרשומות שתאמו (matched).
-        // result.nModified הוא מספר הרשומות ששונו.
-        // result.upserted הוא מערך של הרשומות שנוצרו (אם upsert התבצע).
         let operationSucceeded = false;
         let successMessage = "";
 
@@ -299,8 +288,28 @@ app.get("/api/generated-schedules/:hotelName", (req, res) => {
       });
   });
 });
+// מוסיף נתיב חדש לקבלת תוצאות שיבוץ עם בעיות
+app.get("/schedule-result/:hotelName", (req, res) => {
+  const hotelName = req.params.hotelName;
 
-// Start server
+  result_coll.findOne({ hotelName: hotelName, Week: "Now" }, (err, resultDoc) => {
+    if (err) {
+      console.error("❌ Error fetching result:", err);
+      return res.status(500).json({ message: "Database error" });
+    }
+
+    if (!resultDoc) {
+      return res.status(404).json({ message: "No schedule result found" });
+    }
+
+    res.json({
+      status: resultDoc.status || "unknown",
+      notes: resultDoc.notes || [],
+      generatedAt: resultDoc.generatedAt,
+    });
+  });
+});
+
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}. Accessible on your local network.`);

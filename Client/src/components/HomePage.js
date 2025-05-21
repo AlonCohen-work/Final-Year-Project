@@ -11,7 +11,6 @@ const HomePage = () => {
   const [warning, setWarning] = useState([]);
   const navigate = useNavigate();
 
-  // מפרק את שדה ה-shift ליום ומשמרת
   const parseShift = (shiftStr) => {
     const parts = shiftStr.split(" ");
     return {
@@ -20,7 +19,6 @@ const HomePage = () => {
     };
   };
 
-  // פונקציה שבודקת אם היום רלוונטי למשתמש
   const isIssueRelevantForUser = (issueDay, userSelectedDays) => {
     return !userSelectedDays.some(
       (d) => d.day.toLowerCase() === issueDay.toLowerCase()
@@ -37,12 +35,17 @@ const HomePage = () => {
 
     const selectedDays = savedUser.selectedDays || [];
 
-    fetch(`/get-schedule/${encodeURIComponent(savedUser.Workplace)}`)
-      .then((res) => res.json())
+    fetch(`/api/generated-schedules/${encodeURIComponent(savedUser.Workplace)}`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Server returned ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
-        if (data.status !== "partial" || !data.notes) return;
+        if (data.status !== "partial" || !Array.isArray(data.notes)) return;
 
-        const issues = Array.isArray(data.notes) ? data.notes : [];
+        const issues = data.notes;
 
         if (savedUser.job === "management") {
           setWarning(issues);
@@ -74,9 +77,7 @@ const HomePage = () => {
         if (foundNonWeaponIssue && !savedUser.WeaponCertified && !isSUP) {
           const filtered = issues.filter((i) => {
             const { day } = parseShift(i.shift);
-            return (
-              i.weapon === false && isIssueRelevantForUser(day, selectedDays)
-            );
+            return i.weapon === false && isIssueRelevantForUser(day, selectedDays);
           });
           setWarning(filtered);
           return;

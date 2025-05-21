@@ -36,12 +36,9 @@ const getWeekDateRangeStringForDisplay = (startDate) => {
   return `${formatDate(start)} - ${formatDate(end)}`;
 };
 
-// תיקון: הפונקציה מחשבת את ראשון הבא אחרי generatedAt, לא את הקודם
 const getWeekRangeFromGeneratedAt = (generatedAt) => {
   const date = new Date(generatedAt);
-  const day = date.getDay(); // 0 = Sunday, ..., 6 = Saturday
-
-  // חשב את ראשון הבא אחרי התאריך (או היום אם זה ראשון)
+  const day = date.getDay();
   const daysToAdd = day === 0 ? 0 : 7 - day;
   const sunday = new Date(date);
   sunday.setDate(sunday.getDate() + daysToAdd);
@@ -68,7 +65,6 @@ const WeeklySchedule = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Load user once
   const [user] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('user'));
@@ -79,85 +75,90 @@ const WeeklySchedule = () => {
   const hotelName = user?.Workplace || '';
 
   useEffect(() => {
-  if (!user) {
-    setIsLoading(false);
-    return;
-  }
-  if (!hotelName) {
-    setError('User has no assigned workplace');
-    setIsLoading(false);
-    return;
-  }
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+    if (!hotelName) {
+      setError('User has no assigned workplace');
+      setIsLoading(false);
+      return;
+    }
 
-  setIsLoading(true);
-  setError(null);
+    setIsLoading(true);
+    setError(null);
 
-  fetch(`/api/generated-schedules/${encodeURIComponent(hotelName)}`)
-    .then((res) => {
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      return res.json();
-    })
-    .then((data) => {
-      const latestSchedule = data?.now || null;
-      const previousSchedules = Array.isArray(data?.old) ? data.old : [];
-      const allSchedules = [];
+    fetch(`/api/generated-schedules/${encodeURIComponent(hotelName)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        const latestSchedule = data?.now || null;
+        const previousSchedules = Array.isArray(data?.old) ? data.old : [];
+        const allSchedules = [];
 
-      if (latestSchedule) allSchedules.push({ key: 'latest', schedule: latestSchedule });
-      previousSchedules.forEach((sch, idx) => allSchedules.push({ key: idx, schedule: sch }));
+        if (latestSchedule) allSchedules.push({ key: 'latest', schedule: latestSchedule });
+        previousSchedules.forEach((sch, idx) => allSchedules.push({ key: idx, schedule: sch }));
 
-      // פונקציה שעוזרת לבדוק אם תאריך נמצא בטווח שבוע
-      const isDateInWeekRange = (dateToCheck, weekStartDate) => {
-        if (!weekStartDate) return false;
-        const start = new Date(weekStartDate);
-        start.setHours(0,0,0,0);
-        const end = new Date(start);
-        end.setDate(start.getDate() + 6);
-        return dateToCheck >= start && dateToCheck <= end;
-      };
+        const isDateInWeekRange = (dateToCheck, weekStartDate) => {
+          if (!weekStartDate) return false;
+          const start = new Date(weekStartDate);
+          start.setHours(0, 0, 0, 0);
+          const end = new Date(start);
+          end.setDate(start.getDate() + 6);
+          return dateToCheck >= start && dateToCheck <= end;
+        };
 
-      const today = new Date();
-      today.setHours(0,0,0,0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-      // מחפשים את המשמרת המכסה את השבוע הנוכחי לפי תאריך היום
-      let foundKey = null;
-      for (const item of allSchedules) {
-        const weekStartStr = item.schedule?.relevantWeekStartDate;
-        if (weekStartStr && isDateInWeekRange(today, weekStartStr)) {
-          foundKey = item.key;
-          break;
+        let foundKey = null;
+        for (const item of allSchedules) {
+          const weekStartStr = item.schedule?.relevantWeekStartDate;
+          if (weekStartStr && isDateInWeekRange(today, weekStartStr)) {
+            foundKey = item.key;
+            break;
+          }
         }
-      }
 
-      setSchedules({
-        latest: latestSchedule,
-        previous: previousSchedules,
-      });
+        setSchedules({
+          latest: latestSchedule,
+          previous: previousSchedules,
+        });
 
-      setIdToName(data.idToName || {});
+        setIdToName(data.idToName || {});
+        setSelectedScheduleKey(foundKey !== null ? foundKey : 'latest');
+      })
+      .catch((err) => {
+        console.error('Error loading schedules:', err);
+        setError('Failed to load schedules. Please try again later.');
+        setSchedules({ latest: null, previous: [] });
+      })
+      .finally(() => setIsLoading(false));
+  }, [user, hotelName]);
 
-      // בחר את המשמרת שמתאימה לשבוע הנוכחי (או latest אם לא נמצאה)
-      setSelectedScheduleKey(foundKey !== null ? foundKey : 'latest');
-    })
-    .catch((err) => {
-      console.error('Error loading schedules:', err);
-      setError('Failed to load schedules. Please try again later.');
-      setSchedules({ latest: null, previous: [] });
-    })
-    .finally(() => setIsLoading(false));
-}, [user, hotelName]);
+ const getWorkerName = (workerId) => {
+  const strId = String(workerId);
+  const name = idToName?.[strId];
 
+  if (typeof name === 'string' && name.startsWith('No Worker')) return 'Empty';
+  if (workerId < 0) return 'Empty';  // במקרה שיש id שלילי שלא נמצא
+  return name || `ID: ${workerId}`;
+};
 
-  const getWorkerClass = (name) => {
-    if (!name || name === 'Empty' || String(name).startsWith('ID: -')) return 'worker-missing';
-    if (name === user.name) return 'highlight-user';
-    return 'worker-ok';
-  };
+const getWorkerClass = (name) => {
+  if (!name || name === 'Empty' || name.includes('No Worker') || String(name).startsWith('ID: -')) 
+    return 'worker-missing';
+  if (name === user.name) return 'highlight-user';
+  return 'worker-ok';
+};
+
 
   const handleSelectSchedule = (key) => {
     setSelectedScheduleKey(key);
   };
 
-  // Determine which schedule to show
   let currentScheduleToDisplay = null;
   if (selectedScheduleKey === 'latest') {
     currentScheduleToDisplay = schedules.latest;
@@ -196,9 +197,7 @@ const WeeklySchedule = () => {
                 <td>{position}</td>
                 {SHIFTS.map((shift) => {
                   const entries = (shifts[shift] || []).filter((e) => e.position === position);
-                  const names = entries
-                    .map((entry) => idToName?.[String(entry.worker_id)] ?? `ID: ${entry.worker_id}`)
-                    .join(', ');
+                  const names = entries.map((entry) => getWorkerName(entry.worker_id)).join(', ');
                   return (
                     <td key={shift} className={getWorkerClass(names)}>
                       {names}
@@ -246,12 +245,7 @@ const WeeklySchedule = () => {
                   <td>{position}</td>
                   {days.map((day) => {
                     const entries = (schedule.schedule[day][shift] || []).filter((e) => e.position === position);
-                    const names = entries
-                      .map((entry) => {
-                        const worker = idToName?.[String(entry.worker_id)];
-                        return worker || `ID: ${entry.worker_id}`;
-                      })
-                      .join(', ');
+                    const names = entries.map((entry) => getWorkerName(entry.worker_id)).join(', ');
                     return (
                       <td key={day} className={getWorkerClass(names)}>
                         {names}
@@ -282,22 +276,26 @@ const WeeklySchedule = () => {
           className={selectedScheduleKey === 'latest' ? 'active' : ''}
           disabled={!schedules.latest}
         >
-          Show Current Schedule
+          Show future Schedule
           {schedules.latest?.relevantWeekStartDate &&
             ` (${getWeekDateRangeStringForDisplay(schedules.latest.relevantWeekStartDate)})`}
         </button>
 
-        {previousSchedules.map((prevSchedule, index) => (
-          <button
-            key={prevSchedule._id || index}
-            onClick={() => handleSelectSchedule(index)}
-            className={selectedScheduleKey === index ? 'active' : ''}
-          >
-            {index + 1} Week Back
-            {prevSchedule.relevantWeekStartDate &&
-              ` (${getWeekDateRangeStringForDisplay(prevSchedule.relevantWeekStartDate)})`}
-          </button>
-        ))}
+      {previousSchedules.map((prevSchedule, index) => {
+      const isCurrentWeek = index === 0;
+      const label = isCurrentWeek ? 'Current Schedule' : `${index + 1} Week Back`;
+      const dateRange = prevSchedule.relevantWeekStartDate
+      ? ` (${getWeekDateRangeStringForDisplay(prevSchedule.relevantWeekStartDate)})`: '';
+      return ( <button key={prevSchedule._id || index}
+      onClick={() => handleSelectSchedule(index)}
+      className={selectedScheduleKey === index ? 'active' : ''}
+    >
+      {label}
+      {dateRange}
+    </button>
+  );
+})}
+
 
         {currentScheduleToDisplay && (
           <button
