@@ -392,7 +392,8 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
                 "status": status_label,
                 "notes": partial_notes,
                 "Week": "Now",
-                "idToWorker": {str(k): v for k, v in id_to_worker.items()}
+                "idToWorker": {str(k): v for k, v in id_to_worker.items()},
+                "idToName": {str(k): v["name"] for k, v in id_to_worker.items() if "name" in v}
             }
 
             insert_result = db["result"].insert_one(result_doc)
