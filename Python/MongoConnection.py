@@ -39,7 +39,7 @@ def getData(user_id):
     2. מידע על המלון והאילוצים שלו
     3. העובדים מחולקים לקטגוריות
     """
-    if not connect_to_mongo():
+    if connect_to_mongo() is not True:
         return None
 
     try:
@@ -53,18 +53,18 @@ def getData(user_id):
 
         # 1. מידע על המנהל
         manager = mongo_db["people"].find_one({"_id": user_id})
-        if not manager:
+        if manager is None:
             print(f"Manager not found with ID: {user_id}")
             return None
 
         # 2. מידע על המלון
         hotel_name = manager.get("Workplace")
-        if not hotel_name:
+        if hotel_name is None:
             print("Manager has no workplace assigned")
             return None
             
         hotel = mongo_db["Workplace"].find_one({"hotelName": hotel_name})
-        if not hotel:
+        if hotel is None:
             print(f"Hotel not found with name: {hotel_name}")
             return None
 
