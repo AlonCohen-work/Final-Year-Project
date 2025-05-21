@@ -11,7 +11,7 @@ import argparse
 DUMMY_ID = -1
 
 def check_stale_availability(db, hotel_name, days_threshold=7):
-    if not db:
+    if db is None:
         print(" [Check Stale] No DB connection provided.")
         return True
 
@@ -270,7 +270,7 @@ def evaluate_solution_type(solver, variable_model, variables, real_workers, dumm
 
     print("\n Worker Assignment Summary:")
     for wid, assigned in worker_assigned.items():
-        max_allowed = worker_limits.get(wid, '∞')
+        max_allowed = worker_limits.get(wid, 'unlimited')
         print(f" Worker {wid}: assigned {assigned} shift, max allowed: {max_allowed}")
 
 def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_start_date_str=None):
@@ -278,6 +278,8 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
     
     manager_id_to_process = run_for_manager_id if run_for_manager_id is not None else 4
     print(f"[Main] Running schedule generation for Manager ID: {manager_id_to_process}")
+    print(f"DEBUG: target_week_start_date_str = '{target_week_start_date_str}' (type: {type(target_week_start_date_str)})")
+    print(f"DEBUG: target_week_start_date_str = '{target_week_start_date_str}' (type: {type(target_week_start_date_str)})")
 
     if not target_week_start_date_str:
         print(" [Main] Critical error: No target_week_start_date_str provided to main(). Cannot proceed.")
@@ -287,11 +289,16 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
         if isinstance(target_week_start_date_str, datetime):
             target_week_start_date_for_result = target_week_start_date_str.strftime('%Y-%m-%d')
         else:
-            datetime.strptime(target_week_start_date_str, '%Y-%m-%d')
-            target_week_start_date_for_result = target_week_start_date_str
-        print(f"ℹ [Main] Target week for this run: starts {target_week_start_date_for_result}")
-    except ValueError:
-        print(f" [Main] Invalid target week format received: {target_week_start_date_str}. Cannot proceed.")
+            clean_date = target_week_start_date_str.strip()
+            datetime.strptime(clean_date, '%Y-%m-%d')
+            print("AFTER STRPTIME")
+            target_week_start_date_for_result = clean_date
+        print(f"[Main] Target week for this run: starts {target_week_start_date_for_result}")
+    except ValueError as e:
+        print(f" [Main] Invalid target week format received: {target_week_start_date_str}. Cannot proceed. Exception: {e}")
+        return
+    except Exception as e:
+        print(f" [Main] General exception: {e}")
         return
 
     days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -308,9 +315,9 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
                     if isinstance(worker_id, int) and worker_id > 0:
                         workers_who_worked_saturday_evening_last_week.add(worker_id)
             if workers_who_worked_saturday_evening_last_week:
-                print(f"ℹ Workers identified from last week's Saturday Evening: {workers_who_worked_saturday_evening_last_week}")
+                print(f"[Info] Workers identified from last week's Saturday Evening: {workers_who_worked_saturday_evening_last_week}")
             else:
-                print("ℹ No workers identified from last week's Saturday Evening shifts.")
+                print("[Info] No workers identified from last week's Saturday Evening shifts.")
 
     algo_result = run_algo(manager_id_to_process)
     if not algo_result:
@@ -356,7 +363,7 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
 
         if connect_to_mongo():
             db = connect()
-            if not db:
+            if db is None:
                 print(" [Main] Failed to connect to DB for saving results.")
                 return
 
@@ -385,7 +392,8 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
                 "status": status_label,
                 "notes": partial_notes,
                 "Week": "Now",
-                "idToWorker": {str(k): v for k, v in id_to_worker.items()}
+                "idToWorker": {str(k): v for k, v in id_to_worker.items()},
+                "idToName": {str(k): v["name"] for k, v in id_to_worker.items() if "name" in v}
             }
 
             insert_result = db["result"].insert_one(result_doc)
@@ -399,7 +407,7 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
 def scheduled_auto():
     print(f"\n--- Starting scheduled_auto run at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
     db = connect()
-    if not db:
+    if db is None:
         print(" [Scheduled Auto] Failed to connect to MongoDB. Aborting.")
         return
 
@@ -420,9 +428,9 @@ def scheduled_auto():
     previous_week_schedule_data_for_main = None
     if last_now_schedule_doc and "schedule" in last_now_schedule_doc:
         previous_week_schedule_data_for_main = last_now_schedule_doc["schedule"]
-        print(f"ℹ [Scheduled Auto] Found previous 'Now' schedule for {hotel_name_for_auto_run} to consider for constraints.")
+        print(f"[Info] Found previous 'Now' schedule for {hotel_name_for_auto_run} to consider for constraints.")
     else:
-        print(f"ℹ [Scheduled Auto] No previous 'Now' schedule found for {hotel_name_for_auto_run}.")
+        print(f"[Info] No previous 'Now' schedule found for {hotel_name_for_auto_run}.")
 
     update_rotation_result = result_collection.update_many(
         {"hotelName": hotel_name_for_auto_run, "Week": "Now"},
@@ -440,7 +448,7 @@ def scheduled_auto():
     target_week_for_run = start_of_this_calendar_week + timedelta(days=7)
     target_week_for_run_str = target_week_for_run.strftime('%Y-%m-%d')
 
-    print(f"ℹ [Scheduled Auto] Preparing to generate schedule for Manager ID {MANAGER_ID_FOR_AUTO_RUN}, Hotel: {hotel_name_for_auto_run}, Target Week: {target_week_for_run_str}")
+    print(f"[Info] Preparing to generate schedule for Manager ID {MANAGER_ID_FOR_AUTO_RUN}, Hotel: {hotel_name_for_auto_run}, Target Week: {target_week_for_run_str}")
 
     if hotel_name_for_auto_run:
         print(f"\n [Scheduled Auto] Checking worker availability freshness for hotel: '{hotel_name_for_auto_run}'...")
@@ -487,7 +495,7 @@ if __name__ == "__main__":
 
             db_manual = connect()
             prev_data_manual = None
-            if db_manual:
+            if db_manual is not None:
                 manager_for_prev_data = db_manual["people"].find_one({"_id": manual_manager_id})
                 if manager_for_prev_data and manager_for_prev_data.get("Workplace"):
                     hotel_for_prev_data = manager_for_prev_data.get("Workplace")
