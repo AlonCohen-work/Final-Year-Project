@@ -64,6 +64,7 @@ const WeeklySchedule = () => {
   const [viewMode, setViewMode] = useState('byDay');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [missingNotes, setMissingNotes] = useState([]);
 
   const [user] = useState(() => {
     try {
@@ -137,6 +138,20 @@ const WeeklySchedule = () => {
       })
       .finally(() => setIsLoading(false));
   }, [user, hotelName]);
+
+  useEffect(() => {
+    if (!hotelName) return;
+    fetch(`/schedule-result/${encodeURIComponent(hotelName)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.notes && Array.isArray(data.notes)) {
+          setMissingNotes(data.notes);
+        } else {
+          setMissingNotes([]);
+        }
+      })
+      .catch(() => setMissingNotes([]));
+  }, [hotelName]);
 
  const getWorkerName = (workerId) => {
   const strId = String(workerId);
@@ -261,6 +276,31 @@ const getWorkerClass = (name) => {
     });
   };
 
+  // Helper: does user match the missing note (can work, but didn't request)
+  const isNoteRelevantForUser = (note) => {
+    if (!user) return false;
+    // If manager, see all
+    if (user.job && user.job.toLowerCase().includes('manager')) return true;
+    // Check position
+    if (user.job !== note.position) return false;
+    // Check weapon requirement
+    if (note.weapon && !user.WeaponCertified) return false;
+    // Check if user already requested this shift
+    if (Array.isArray(user.selectedDays)) {
+      // selectedDays: [{ day: 'Monday', shifts: ['Morning', ...] }, ...]
+      const [day, shift] = note.shift.split(' ');
+      const dayObj = user.selectedDays.find(d => d.day === day);
+      if (dayObj && Array.isArray(dayObj.shifts) && dayObj.shifts.includes(shift)) {
+        return false; // already requested
+      }
+    }
+    return true;
+  };
+
+  const filteredMissingNotes = user && user.job && user.job.toLowerCase().includes('manager')
+    ? missingNotes
+    : missingNotes.filter(isNoteRelevantForUser);
+
   if (isLoading) return <div className="loading-message">Loading schedules...</div>;
   if (error) return <div className="error-message">{error}</div>;
   if (!hotelName && user) return <div className="error-message">User has no assigned workplace</div>;
@@ -269,6 +309,23 @@ const getWorkerClass = (name) => {
   return (
     <div className="content-wrapper weekly-schedule-page">
       <h1>Work Schedule View - {hotelName}</h1>
+
+      {/* Show missing shifts warning if any, RTL and filtered */}
+      {filteredMissingNotes.length > 0 && (
+        <div className="missing-warning" style={{background:'#fff3cd',border:'1px solid #ffeeba',padding:'16px',marginBottom:'16px',borderRadius:'8px', direction:'rtl', textAlign:'right'}}>
+          <h2 style={{color:'#856404'}}>שימו לב! יש חוסרים בשיבוץ:</h2>
+          {user && user.job && user.job.toLowerCase().includes('manager') && (
+            <div style={{fontWeight:'bold',marginBottom:'8px'}}>סה"כ חוסרים: {filteredMissingNotes.length}</div>
+          )}
+          <ul>
+            {filteredMissingNotes.map((note, idx) => (
+              <li key={idx}>
+                חסר בתפקיד <b>{note.position}</b> במשמרת <b>{note.shift}</b> {note.weapon ? '(נדרש נשק)' : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="button-fixed-right">
         <button
