@@ -8,15 +8,17 @@ import Employee_Request from "../images/iconapp-Photo.png";
 
 const HomePage = () => {
   const [user, setUser] = useState(null);
-  const [warning, setWarning] = useState([]);
+  const [nowWarnings, setNowWarnings] = useState([]);
+
+  const [announcements, setAnnouncements] = useState([]);
+  const [pauseScroll, setPauseScroll] = useState(false);
+  const [newAnnouncement, setNewAnnouncement] = useState("");
+
   const navigate = useNavigate();
 
   const parseShift = (shiftStr) => {
     const parts = shiftStr.split(" ");
-    return {
-      day: parts[0] || "",
-      shift: parts[1] || "",
-    };
+    return { day: parts[0] || "", shift: parts[1] || "" };
   };
 
   const isIssueRelevantForUser = (issueDay, userSelectedDays) => {
@@ -26,67 +28,127 @@ const HomePage = () => {
   };
 
   useEffect(() => {
-    const savedUser = JSON.parse(localStorage.getItem("user"));
+  const rawUser = localStorage.getItem("user");
+  try {
+    const savedUser = JSON.parse(rawUser);
     if (!savedUser) return;
 
     setUser(savedUser);
-
-    if (!savedUser.Workplace) return;
-
     const selectedDays = savedUser.selectedDays || [];
 
     fetch(`/api/generated-schedules/${encodeURIComponent(savedUser.Workplace)}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Server returned ${res.status}`);
-        }
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
-        if (data.status !== "partial" || !Array.isArray(data.notes)) return;
+        console.log("📦 Fetched schedule data:", data);
 
-        const issues = data.notes;
+        const nowNotes = data.now?.notes || [];
+   
 
-        if (savedUser.job === "management") {
-          setWarning(issues);
-          return;
+        console.log("🟢 Now notes count:", nowNotes.length);
+  
+
+        const processNotes = (notes, label) => {
+          if (savedUser.job === "management") {
+            console.log(`🔍 ${label}: management sees all notes`);
+            return notes;
+          }
+
+          if (savedUser.ShiftManager === true) {
+            const filtered = notes.filter((i) =>
+              isIssueRelevantForUser(parseShift(i.shift).day, selectedDays)
+            );
+            if(filtered.length>0)
+            console.log(` ShiftManager filtered notes count:`, filtered.length);
+          
+            return filtered;
+          }
+
+          const foundWeaponIssue = notes.some((i) => i.weapon === true);
+          const foundNonWeaponIssue = notes.some((i) => i.weapon === false);
+          const isSUP = notes.some((i) => i.position === "Shift Supervisor");
+
+          if (foundWeaponIssue && savedUser.WeaponCertified && !isSUP) {
+            const filtered = notes.filter(
+              (i) =>
+                i.weapon === true &&
+                isIssueRelevantForUser(parseShift(i.shift).day, selectedDays)
+            );
+            console.log(`🔫 ${label}: WeaponCertified, filtered count:`, filtered.length);
+            return filtered;
+          }
+
+          if (foundNonWeaponIssue && !savedUser.WeaponCertified && !isSUP) {
+            const filtered = notes.filter(
+              (i) =>
+                i.weapon === false &&
+                isIssueRelevantForUser(parseShift(i.shift).day, selectedDays)
+            );
+            console.log(`🚫 ${label}: Non-WeaponCertified, filtered count:`, filtered.length);
+            return filtered;
+          }
+
+          console.log(`❗ ${label}: No relevant issues`);
+          return [];
+        };
+
+        const processedNow = processNotes(nowNotes, "Now");
+    
+
+        setNowWarnings(processedNow);
+
+      })
+      .catch((err) => {
+        console.error("❌ Failed to fetch schedule data:", err);
+      });
+  } catch (err) {
+    console.error("❌ Failed to parse user data:", err);
+  }
+}, []);
+
+
+  useEffect(() => {
+    fetch("/api/announcements")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setAnnouncements(data.announcements);
+      });
+  }, []);
+
+  const handleAnnouncementSubmit = () => {
+    if (!newAnnouncement.trim()) return;
+
+    fetch("/api/announcements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: newAnnouncement }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setNewAnnouncement("");
+          fetch("/api/announcements")
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.success) setAnnouncements(data.announcements);
+            });
         }
+      });
+  };
 
-        if (savedUser.ShiftManager === true) {
-          const filtered = issues.filter((i) => {
-            const { day } = parseShift(i.shift);
-            return isIssueRelevantForUser(day, selectedDays);
-          });
-          setWarning(filtered);
-          return;
-        }
+  const handleDeleteAnnouncement = (id) => {
+    if (!window.confirm("האם אתה בטוח שברצונך למחוק את ההודעה?")) return;
 
-        const foundWeaponIssue = issues.some((i) => i.weapon === true);
-        const foundNonWeaponIssue = issues.some((i) => i.weapon === false);
-        const isSUP = issues.some((i) => i.position === "Shift Supervisor");
-
-        if (foundWeaponIssue && savedUser.WeaponCertified && !isSUP) {
-          const filtered = issues.filter((i) => {
-            const { day } = parseShift(i.shift);
-            return i.weapon === true && isIssueRelevantForUser(day, selectedDays);
-          });
-          setWarning(filtered);
-          return;
-        }
-
-        if (foundNonWeaponIssue && !savedUser.WeaponCertified && !isSUP) {
-          const filtered = issues.filter((i) => {
-            const { day } = parseShift(i.shift);
-            return i.weapon === false && isIssueRelevantForUser(day, selectedDays);
-          });
-          setWarning(filtered);
-          return;
+    fetch(`/api/announcements/${id}`, {
+      method: "DELETE"
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setAnnouncements(announcements.filter((a) => a._id !== id));
         }
       })
-      .catch((err) =>
-        console.error("❌ Failed to fetch schedule result:", err)
-      );
-  }, []);
+      .catch((err) => console.error("❌ Error deleting announcement:", err));
+  };
 
   const handleCellClick = (path) => {
     navigate(path);
@@ -96,25 +158,70 @@ const HomePage = () => {
     <div className="homepage">
       <h1>Welcome, {user ? user.name : "Guest"}!</h1>
 
-      {warning.length > 0 && (
+      {(nowWarnings.length > 0 ) && (
         <div className="warning-banner">
           <strong>
-            <span role="img" aria-label="Warning">
-              ⚠️
-            </span>{" "}
-            Partial schedule detected — {warning.length} problematic shifts:
+            <span role="img" aria-label="Warning">⚠️</span> Partial schedule issues:
           </strong>
-          <ul>
-            {warning.map((i, idx) => {
-              const { day, shift } = parseShift(i.shift);
-              return (
-                <li key={idx}>
-                  {day} — {shift} — {i.position}
-                </li>
-              );
-            })}
-          </ul>
-          <p>Please submit your updated availability.</p>
+
+          {nowWarnings.length > 0 && (
+            <>
+              <h4> Problems next week :</h4>
+              <ul>
+                {nowWarnings.map((i, idx) => {
+                  const { day, shift } = parseShift(i.shift);
+                  return <li key={`now-${idx}`}>{day} — {shift} — {i.position}</li>;
+                })}
+              </ul>
+            </>
+          )}
+
+         
+
+          <p>please send anoter work arrangement</p>
+        </div>
+      )}
+
+      {/* פורום הודעות */}
+      <div
+        className="announcement-forum"
+        onMouseEnter={() => setPauseScroll(true)}
+        onMouseLeave={() => setPauseScroll(false)}
+      >
+        <h3>
+          <span role="img" aria-label="Announcement">📢</span> פורום עדכונים
+        </h3>
+
+        <div className={`announcement-list ${pauseScroll ? "paused" : ""}`}>
+          <div className="announcement-items-wrapper">
+            {announcements.map((a) => (
+              <div className="announcement-item" key={a._id}>
+                <strong>{new Date(a.date).toLocaleDateString()}:</strong> {a.message}
+                {user?.job === "management" && (
+                  <button
+                    className="delete-btn"
+                    onClick={() => handleDeleteAnnouncement(a._id)}
+                    title="מחק הודעה"
+                  >
+                    <span role="img" aria-label="delete">❌</span>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* טופס למנהל */}
+      {user?.job === "management" && (
+        <div className="announcement-form">
+          <h4>הוסף הודעה חדשה</h4>
+          <textarea
+            value={newAnnouncement}
+            onChange={(e) => setNewAnnouncement(e.target.value)}
+            placeholder="כתוב כאן את ההודעה שלך..."
+          />
+          <button onClick={handleAnnouncementSubmit}>שלח</button>
         </div>
       )}
 

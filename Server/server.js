@@ -14,6 +14,7 @@ const db = mongojs(dbURI);
 const people_coll = db.collection("people");
 const Workplace_coll = db.collection("Workplace");
 const result_coll = db.collection("result");
+const announcements_coll = db.collection("announcements");
 
 db.on("connect", () => {
   console.log("✅ Connected to MongoDB Atlas");
@@ -251,7 +252,8 @@ app.post("/api/run-scheduler/:hotelName", (req, res) => {
 app.get("/api/generated-schedules/:hotelName", (req, res) => {
   const hotelName = req.params.hotelName;
 
-  result_coll.findOne({ hotelName: hotelName, Week: "Now" }, (err, nowSchedule) => {
+  // מצא את הסידור הנוכחי הכי חדש (Week: "Now")
+  result_coll.find({ hotelName: hotelName, Week: "Now" }).sort({ generatedAt: -1 }).limit(1, (err, nowArr) => {
     if (err) {
       console.error(`Error fetching current schedule for ${hotelName}:`, err);
       return res.status(500).json({
@@ -260,34 +262,39 @@ app.get("/api/generated-schedules/:hotelName", (req, res) => {
         error: err.message
       });
     }
-    result_coll.find({ hotelName: hotelName, Week: "Old" })
-      .sort({ generatedAt: -1 })
-      .limit(5, (err2, oldSchedules) => {
-        if (err2) {
-          console.error(`Error fetching old schedules for ${hotelName}:`, err2);
-          return res.status(500).json({
-            success: false,
-            message: "Error fetching old schedules",
-            error: err2.message
-          });
-        }
-        if (!nowSchedule && (!oldSchedules || oldSchedules.length === 0)) {
-          return res.status(404).json({
-            success: false,
-            message: `No generated schedules found for hotel ${hotelName}.`,
-            now: null,
-            old: []
-          });
-        }
-        res.json({
-          success: true,
-          now: nowSchedule,
-          old: oldSchedules || [],
-          idToName: nowSchedule?.idToName || {}
+
+    const nowSchedule = nowArr && nowArr.length > 0 ? nowArr[0] : null;
+
+    // מצא את 5 הסידורים הקודמים האחרונים (Week: "Old")
+    result_coll.find({ hotelName: hotelName, Week: "Old" }).sort({ generatedAt: -1 }).limit(5, (err2, oldSchedules) => {
+      if (err2) {
+        console.error(`Error fetching old schedules for ${hotelName}:`, err2);
+        return res.status(500).json({
+          success: false,
+          message: "Error fetching old schedules",
+          error: err2.message
         });
+      }
+
+      if (!nowSchedule && (!oldSchedules || oldSchedules.length === 0)) {
+        return res.status(404).json({
+          success: false,
+          message: `No generated schedules found for hotel ${hotelName}.`,
+          now: null,
+          old: []
+        });
+      }
+
+      res.json({
+        success: true,
+        now: nowSchedule,
+        old: oldSchedules || [],
+        idToName: nowSchedule?.idToName || {}
       });
+    });
   });
 });
+
 // מוסיף נתיב חדש לקבלת תוצאות שיבוץ עם בעיות
 app.get("/schedule-result/:hotelName", (req, res) => {
   const hotelName = req.params.hotelName;
@@ -309,6 +316,38 @@ app.get("/schedule-result/:hotelName", (req, res) => {
     });
   });
 });
+app.get("/api/announcements", (req, res) => {
+  announcements_coll.find().sort({ date: -1 }).limit(10, (err, docs) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: "DB error" });
+    }
+    res.json({ success: true, announcements: docs });
+  });
+});
+
+app.post("/api/announcements", (req, res) => {
+  const { message } = req.body;
+  if (!message) {
+    return res.status(400).json({ success: false, message: "Missing message" });
+  }
+  const doc = { message, date: new Date() };
+  announcements_coll.insert(doc, (err, result) => {
+    if (err) {
+      return res.status(500).json({ success: false });
+    }
+    res.json({ success: true, inserted: doc });
+  });
+});
+app.delete("/api/announcements/:id", (req, res) => {
+  const id = req.params.id;
+  if (!id) return res.status(400).json({ success: false });
+
+  announcements_coll.remove({ _id: mongojs.ObjectId(id) }, (err, result) => {
+    if (err) return res.status(500).json({ success: false });
+    res.json({ success: true });
+  });
+});
+
 
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, "0.0.0.0", () => {
