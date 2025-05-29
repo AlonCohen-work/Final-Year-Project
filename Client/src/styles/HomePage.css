@@ -12,7 +12,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #fdf6ec;
+  background: #fdfdfd;
   height: 100%;
   min-height: 100vh;
   margin: 0;
@@ -73,7 +73,7 @@ body {
   border-collapse: collapse;
   width: 80%;
   max-width: 800px;
-  background-color: #ffffff;
+   background: #fdf6ec;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   border-radius: 10px;
   overflow: hidden;
@@ -88,12 +88,12 @@ body {
 }
 
 .custom-table td:hover {
-  background-color: #f7f7f7;
+  background-color: #ec9d57;
 }
 
 .custom-table img {
-  width: 100px;
-  height: 100px;
+  width: 130px;
+  height: 130px;
   object-fit: contain;
   margin: 10px auto;
   display: block;
@@ -114,23 +114,6 @@ body {
       height: 80px;
   }
 }
-.announcement-forum {
-  position: absolute;
-  top: 200px;
-  left: 20px;
-  width: 300px;
-  height: 300px;
-  background-color: #27354c;
-  color: white;
-  padding: 15px;
-  border-radius: 10px;
-  overflow: hidden;
-  font-size: 14px;
-  z-index: 10;
-  direction: rtl; /* כיוון ימין לשמאל */
-  text-align: right;
-}
-
 .announcement-forum h3 {
   font-size: 18px;
   margin-bottom: 6px;
@@ -150,11 +133,9 @@ body {
   animation: scrollUp 17s linear infinite;
 }
 
-
 .announcement-items-wrapper {
   display: flex;
   flex-direction: column;
-  
 }
 
 .announcement-list.paused {
@@ -162,7 +143,7 @@ body {
 }
 
 .announcement-item {
-  margin-bottom: 6px; /* ריווח בין ההודעות */
+  margin-bottom: 6px;
   padding-right: 5px;
   color: white;
   font-size: 14px;
@@ -171,24 +152,25 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: right;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 @keyframes scrollUp {
   0% {
-    transform: translateY(330px); /* מתחיל מתחתית הקונטיינר */
+    transform: translateY(330px);
   }
   100% {
-    transform: translateY(-5%); /* זז למעלה לגמרי + גובה הקונטיינר */
+    transform: translateY(-5%);
   }
 }
 
-
 .announcement-form {
   position: absolute;
-  
-  top: 320px;
+  top: 500px;
+  width: 305px;
   left: 20px;
-  width: 300px;
   background-color: #e3f2fd;
   padding: 10px;
   border-radius: 8px;
@@ -196,6 +178,7 @@ body {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   direction: rtl;
   text-align: right;
+  margin-top: 20px; /* מרווח מהפורום */
 }
 
 
