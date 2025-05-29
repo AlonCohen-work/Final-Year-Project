@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "../styles/Navbar.css";
-import logo from "../images/logo.png"; // נתיב ללוגו
+import logo from "../images/Screenshot 2025-05-29 141545.png"; // נתיב ללוגו
 
 const Navbar = () => {
   const [user, setUser] = useState(null);

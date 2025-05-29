@@ -65,8 +65,8 @@ body {
   overflow: hidden;
   font-size: 14px;
   z-index: 10;
-  direction: rtl; /* כיוון ימין לשמאל */
-  text-align: right;
+  direction: ltr; /* כיוון ימין לשמאל */
+  text-align: left;
 }
 
 .custom-table {
@@ -124,45 +124,41 @@ body {
 }
 
 .announcement-list {
-  height: 255px;
+  height: 255px; /* או כל גובה קבוע שאתה רוצה */
   overflow: hidden;
   position: relative;
-  font-size: 14px;
-  direction: rtl;
-  text-align: right;
-  animation: scrollUp 17s linear infinite;
 }
 
-.announcement-items-wrapper {
-  display: flex;
-  flex-direction: column;
-}
+
 
 .announcement-list.paused {
   animation-play-state: paused;
 }
 
 .announcement-item {
-  margin-bottom: 6px;
-  padding-right: 5px;
-  color: white;
-  font-size: 14px;
-  direction: rtl;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: right;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  direction: rtl;
+  padding: 5px;
+  margin-bottom: 10px;
+  background-color: #a8ccf3;
+  border-radius: 8px;
+  text-align: right; /* יישור כללי לטקסט */
 }
 
+.message-text {
+  flex: 1;
+  margin-right: 10px;
+  white-space: pre-line;
+  text-align: right; /* חשוב מאוד! */
+}
 @keyframes scrollUp {
   0% {
     transform: translateY(330px);
   }
   100% {
-    transform: translateY(-5%);
+    transform: translateY(-100%);
   }
 }
 
@@ -176,12 +172,19 @@ body {
   border-radius: 8px;
   font-size: 14px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  direction: rtl;
-  text-align: right;
+  direction: ltr;
+  text-align: left;
   margin-top: 20px; /* מרווח מהפורום */
 }
+.announcement-items-wrapper {
+  display: flex;
+  flex-direction: column;
+  animation: scrollUp 10s linear infinite;
+}
 
-
+.announcement-list.paused .announcement-items-wrapper {
+  animation-play-state: paused;
+}
 .announcement-form h4 {
   margin-bottom: 8px;
   font-size: 16px;

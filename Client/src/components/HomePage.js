@@ -196,17 +196,18 @@ const HomePage = () => {
           <div className="announcement-items-wrapper">
             {announcements.map((a) => (
               <div className="announcement-item" key={a._id}>
-                <strong>{new Date(a.date).toLocaleDateString()}:</strong> {a.message}
-                {user?.job === "management" && (
-                  <button
-                    className="delete-btn"
-                    onClick={() => handleDeleteAnnouncement(a._id)}
-                    title="מחק הודעה"
-                  >
-                    <span role="img" aria-label="delete">❌</span>
-                  </button>
-                )}
-              </div>
+  <strong>{new Date(a.date).toLocaleDateString()}:</strong>
+  <span className="message-text">{a.message}</span>
+  {user?.job === "management" && (
+    <button
+      className="delete-btn"
+      onClick={() => handleDeleteAnnouncement(a._id)}
+      title="מחק הודעה"
+    >
+      <span role="img" aria-label="delete">❌</span>
+    </button>
+  )}
+</div>
             ))}
           </div>
         </div>
