@@ -178,7 +178,7 @@ body {
     transform: translateY(330px); /* מתחיל מתחתית הקונטיינר */
   }
   100% {
-    transform: translateY(-200px); /* זז למעלה לגמרי + גובה הקונטיינר */
+    transform: translateY(-5%); /* זז למעלה לגמרי + גובה הקונטיינר */
   }
 }
 
