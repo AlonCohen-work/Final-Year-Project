@@ -159,28 +159,30 @@ const HomePage = () => {
       <h1>Welcome, {user ? user.name : "Guest"}!</h1>
 
       {(nowWarnings.length > 0 ) && (
-        <div className="warning-banner">
-          <strong>
-            <span role="img" aria-label="Warning">⚠️</span> Partial schedule issues:
-          </strong>
+  <div className="warning-banner">
+    <strong>
+      <span role="img" aria-label="Warning">⚠️</span> Partial schedule issues:
+    </strong>
 
-          {nowWarnings.length > 0 && (
-            <>
-              <h4> Problems next week :</h4>
-              <ul>
-                {nowWarnings.map((i, idx) => {
-                  const { day, shift } = parseShift(i.shift);
-                  return <li key={`now-${idx}`}>{day} — {shift} — {i.position}</li>;
-                })}
-              </ul>
-            </>
-          )}
+    {nowWarnings.length > 0 && (
+      <>
+        <h4> Problems next week :</h4>
+        <ul>
+          {nowWarnings.map((i, idx) => {
+            const { day, shift } = parseShift(i.shift);
+            return <li key={`now-${idx}`}>{day} — {shift} — {i.position}</li>;
+          })}
+        </ul>
+      </>
+    )}
 
-         
-
-          <p>please send anoter work arrangement</p>
-        </div>
-      )}
+    <p>
+      {user?.job === "management"
+        ? "please change the demand of work arrangement"
+        : "please send another work arrangement"}
+    </p>
+  </div>
+)}
 
       {/* פורום הודעות */}
       <div
