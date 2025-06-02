@@ -217,8 +217,9 @@ app.post("/api/run-scheduler/:hotelName", (req, res) => {
   }
 
   const managerIdForPython = 4;
+  const pythonExe = 'C:/Users/1/Documents/Final-Year-Project/.venv/Scripts/python.exe';
   const pythonScriptAbsolutePath = path.join(__dirname, "..", "Python", "Constraints.py");
-  const command = `python "${pythonScriptAbsolutePath}" --mode manual --manager-id ${managerIdForPython} --target-week ${targetWeekStartDate}`;
+  const command = `"${pythonExe}" "${pythonScriptAbsolutePath}" --mode manual --manager-id ${managerIdForPython} --target-week ${targetWeekStartDate}`;
 
   console.log(`Executing Python script for hotel ${hotelName}: ${command}`);
 

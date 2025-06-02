@@ -293,6 +293,17 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
 
     db = connect()
 
+    # Update all previous schedules for this hotel from 'Now' to 'Old'
+    db["result"].update_many(
+        {
+            "hotelName": result["hotel"]["name"],
+            "Week": "Now"
+        },
+        {
+            "$set": {"Week": "Old"}
+        }
+    )
+
     partial_notes = []
     for day, shifts in schedule_by_day.items():
         for shift_type, assignments in shifts.items():
@@ -327,6 +338,7 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
     result_doc,
     upsert=True)
     print(f"Schedule saved to MongoDB (collection: result) for week {target_week_str}")
+
 def scheduled_auto():
     print(f"\n--- Starting scheduled_auto run at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
     db = connect()
