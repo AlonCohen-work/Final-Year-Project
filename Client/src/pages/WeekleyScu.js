@@ -357,12 +357,6 @@ const getWorkerClass = (name) => {
         >
           Previous Week
         </button>
-        <button
-          onClick={() => setSelectedSchedule('next')}
-          className={selectedSchedule === 'next' ? 'active' : ''}
-        >
-          Next Week
-        </button>
         {scheduleToDisplay && (
           <button
             onClick={() => setViewMode((prevMode) => (prevMode === 'byDay' ? 'wide' : 'byDay'))}
@@ -379,9 +373,6 @@ const getWorkerClass = (name) => {
       )}
       {selectedSchedule === 'previous' && !getPreviousSchedule() && (
         <div className="no-schedule-message">No schedule for the previous week</div>
-      )}
-      {selectedSchedule === 'next' && !getNextSchedule() && (
-        <div className="no-schedule-message">No schedule for the next week yet</div>
       )}
 
       {scheduleToDisplay && (
