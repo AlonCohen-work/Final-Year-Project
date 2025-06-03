@@ -25,15 +25,18 @@ const getWeekDateRangeStringForDisplay = (startDate) => {
 
   let start;
   if (typeof startDate === 'string') {
-    start = getStartOfWeek(startDate);
-    if (!start) return 'Invalid date';
+    start = new Date(startDate);
+    if (isNaN(start)) return 'Invalid date';
   } else if (startDate instanceof Date) {
     start = new Date(startDate);
   } else {
     return 'Unknown date';
   }
 
+  // הוספת יום אחד לתאריך כדי שהשבוע יתחיל ביום ראשון שאחריו
+  start.setDate(start.getDate() + 1);
   start.setHours(0, 0, 0, 0);
+
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
 
@@ -47,26 +50,6 @@ const getWeekDateRangeStringForDisplay = (startDate) => {
   return `${formatDate(start)} - ${formatDate(end)}`;
 };
 
-const getWeekRangeFromGeneratedAt = (generatedAt) => {
-  const date = new Date(generatedAt);
-  const day = date.getDay();
-  const daysToAdd = day === 0 ? 0 : 7 - day;
-  const sunday = new Date(date);
-  sunday.setDate(sunday.getDate() + daysToAdd);
-  sunday.setHours(0, 0, 0, 0);
-
-  const saturday = new Date(sunday);
-  saturday.setDate(sunday.getDate() + 6);
-
-  const format = (d) => {
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    return `${dd}/${mm}/${yyyy}`;
-  };
-
-  return `${format(sunday)} - ${format(saturday)}`;
-};
 
 const WeeklySchedule = () => {
   const [schedules, setSchedules] = useState({ latest: null, previous: [] });
@@ -108,6 +91,7 @@ const WeeklySchedule = () => {
       .then((data) => {
         const latestSchedule = data?.now || null;
         const previousSchedules = Array.isArray(data?.old) ? data.old : [];
+        const nextSchedules = data.next ;
         const allSchedules = [];
 
         if (latestSchedule) allSchedules.push({ key: 'latest', schedule: latestSchedule });
@@ -115,7 +99,6 @@ const WeeklySchedule = () => {
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const startOfCurrentWeek = getStartOfWeek(today);
 
         let foundKey = null;
         for (const item of allSchedules) {
@@ -129,6 +112,7 @@ const WeeklySchedule = () => {
         setSchedules({
           latest: latestSchedule,
           previous: previousSchedules,
+          next:nextSchedules,
         });
 
         setIdToName(data.idToName || {});
@@ -173,10 +157,7 @@ const getWorkerClass = (name) => {
 };
 
 
-  const handleSelectSchedule = (key) => {
-    setSelectedSchedule(key);
-  };
-
+ 
   let currentScheduleToDisplay = null;
   if (selectedSchedule === 'latest') {
     currentScheduleToDisplay = schedules.latest;
@@ -188,7 +169,6 @@ const getWorkerClass = (name) => {
     currentScheduleToDisplay = schedules.previous[selectedSchedule];
   }
 
-  const previousSchedules = Array.isArray(schedules.previous) ? schedules.previous : [];
 
   const renderDayTable = (day, shifts) => {
     const positionsSet = new Set();
@@ -345,6 +325,12 @@ const getWorkerClass = (name) => {
       )}
 
       <div className="button-fixed-right">
+         <button
+          onClick={() => setSelectedSchedule('next')}
+          className={selectedSchedule === 'next' ? 'active' : ''}
+        >
+          Next Week
+        </button>
         <button
           onClick={() => setSelectedSchedule('current')}
           className={selectedSchedule === 'current' ? 'active' : ''}
@@ -374,10 +360,13 @@ const getWorkerClass = (name) => {
       {selectedSchedule === 'previous' && !getPreviousSchedule() && (
         <div className="no-schedule-message">No schedule for the previous week</div>
       )}
+      {selectedSchedule === 'next' && !getNextSchedule() && (
+        <div className="no-schedule-message">No schedule for the next week</div>
+      )}
 
       {scheduleToDisplay && (
         <div className="schedule-content">
-          <p style={{ textAlign: 'center', fontSize: '0.9em', color: '#555' }}>
+          <p style={{ textAlign: 'center', fontSize: '1.25em', color: '#555' }}>
             Schedule for: {getWeekDateRangeStringForDisplay(scheduleToDisplay.relevantWeekStartDate)}
             {scheduleToDisplay.status === 'partial' && (
               <span style={{ color: 'orange', marginLeft: '10px' }}>(Partial schedule)</span>

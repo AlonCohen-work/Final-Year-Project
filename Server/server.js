@@ -3,6 +3,7 @@ const mongojs = require("mongojs");
 const cors = require("cors");
 const { exec } = require('child_process');
 const path = require('path');
+const moment = require("moment");
 
 const app = express();
 app.use(express.json());
@@ -248,26 +249,51 @@ app.post("/api/run-scheduler/:hotelName", (req, res) => {
     });
   });
 });
-
-// Fixed endpoint for mongojs (no Promise, no toArray)
 app.get("/api/generated-schedules/:hotelName", (req, res) => {
   const hotelName = req.params.hotelName;
 
-  // מצא את הסידור הנוכחי הכי חדש (Week: "Now")
-  result_coll.find({ hotelName: hotelName, Week: "Now" }).sort({ generatedAt: -1 }).limit(1, (err, nowArr) => {
+  const today = moment().startOf('day');
+
+  // מצא את שבת השבוע הנוכחי (6 = שבת)
+  let currentWeekStart = moment(today).day(6);
+  if (currentWeekStart.isAfter(today)) {
+    // אם שבת עדיין לא הגיעה השבוע, קח את שבת השבוע הקודם
+    currentWeekStart = currentWeekStart.subtract(7, 'days');
+  }
+
+  const nextWeekStart = moment(currentWeekStart).add(7, 'days');
+
+  const currentStr = currentWeekStart.format('YYYY-MM-DD');
+  const nextStr = nextWeekStart.format('YYYY-MM-DD');
+
+  result_coll.find({
+    hotelName: hotelName,
+    relevantWeekStartDate: { $in: [currentStr, nextStr] }
+  }).toArray((err, schedules) => {
     if (err) {
-      console.error(`Error fetching current schedule for ${hotelName}:`, err);
+      console.error(`Error fetching current/next schedules for ${hotelName}:`, err);
       return res.status(500).json({
         success: false,
-        message: "Error fetching current schedule",
+        message: "Error fetching schedules",
         error: err.message
       });
     }
 
-    const nowSchedule = nowArr && nowArr.length > 0 ? nowArr[0] : null;
+    let nowSchedule = null;
+    let nextSchedule = null;
 
-    // מצא את 5 הסידורים הקודמים האחרונים (Week: "Old")
-    result_coll.find({ hotelName: hotelName, Week: "Old" }).sort({ generatedAt: -1 }).limit(5, (err2, oldSchedules) => {
+    schedules.forEach(schedule => {
+      if (schedule.relevantWeekStartDate === currentStr) {
+        nowSchedule = schedule;
+      } else if (schedule.relevantWeekStartDate === nextStr) {
+        nextSchedule = schedule;
+      }
+    });
+
+    result_coll.find({
+      hotelName: hotelName,
+      relevantWeekStartDate: { $nin: [currentStr, nextStr] }
+    }).sort({ generatedAt: -1 }).limit(5).toArray((err2, oldSchedules) => {
       if (err2) {
         console.error(`Error fetching old schedules for ${hotelName}:`, err2);
         return res.status(500).json({
@@ -277,24 +303,38 @@ app.get("/api/generated-schedules/:hotelName", (req, res) => {
         });
       }
 
-      if (!nowSchedule && (!oldSchedules || oldSchedules.length === 0)) {
-        return res.status(404).json({
-          success: false,
-          message: `No generated schedules found for hotel ${hotelName}.`,
-          now: null,
-          old: []
-        });
-      }
+      console.log(`=== Schedule Info for Hotel: ${hotelName} ===`);
+      console.log(`Current Week Start (שבת): ${currentStr}`);
+      console.log(`Next Week Start (שבת):    ${nextStr}`);
+      console.log(`---`);
+      console.log("Now Schedule:", nowSchedule ? {
+        relevantWeekStartDate: nowSchedule.relevantWeekStartDate,
+        generatedAt: nowSchedule.generatedAt,
+        _id: nowSchedule._id
+      } : "לא נמצא");
+      console.log("Next Schedule:", nextSchedule ? {
+        relevantWeekStartDate: nextSchedule.relevantWeekStartDate,
+        generatedAt: nextSchedule.generatedAt,
+        _id: nextSchedule._id
+      } : "לא נמצא");
+
+      console.log(`Old Schedules (${oldSchedules.length}):`);
+      oldSchedules.forEach((old, i) => {
+        console.log(`  [${i + 1}] ${old.relevantWeekStartDate} | ${old.generatedAt} | ${old._id}`);
+      });
 
       res.json({
         success: true,
         now: nowSchedule,
+        next: nextSchedule,
         old: oldSchedules || [],
         idToName: nowSchedule?.idToName || {}
       });
     });
   });
 });
+
+
 
 // מוסיף נתיב חדש לקבלת תוצאות שיבוץ עם בעיות
 app.get("/schedule-result/:hotelName", (req, res) => {

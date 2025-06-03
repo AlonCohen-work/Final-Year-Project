@@ -1,7 +1,9 @@
 {
   "name": "final-year-project",
   "version": "1.0.0",
-  "dependencies": {},
+  "dependencies": {
+    "moment": "^2.30.1"
+  },
   "devDependencies": {
     "concurrently": "^9.1.2"
   },
