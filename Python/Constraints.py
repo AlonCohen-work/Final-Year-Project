@@ -421,7 +421,7 @@ if __name__ == "__main__":
                     last_old = db_manual["result"].find_one(
                         {"hotelName": hotel_for_prev_data, "Week": "Old"},
                         sort=[("generatedAt", -1)]
-                    )
+                                  )
                     if not last_old:
                         last_old = db_manual["result"].find_one(
                             {"hotelName": hotel_for_prev_data, "Week": "Now"},

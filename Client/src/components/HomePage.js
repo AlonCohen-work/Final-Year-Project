@@ -9,7 +9,6 @@ import Employee_Request from "../images/iconapp-Photo.png";
 const HomePage = () => {
   const [user, setUser] = useState(null);
   const [nowWarnings, setNowWarnings] = useState([]);
-
   const [announcements, setAnnouncements] = useState([]);
   const [pauseScroll, setPauseScroll] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState("");
@@ -166,7 +165,7 @@ const HomePage = () => {
 
     {nowWarnings.length > 0 && (
       <>
-        <h4> Problems next week :</h4>
+        <h4> Problems this week :</h4>
         <ul>
           {nowWarnings.map((i, idx) => {
             const { day, shift } = parseShift(i.shift);

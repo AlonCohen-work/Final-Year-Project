@@ -100,3 +100,13 @@ h1 {
 .button-fixed-right button.active {
   background-color: #f97316;
 }
+.schedule-header {
+  text-align: center;
+  font-size: 1.25em;
+  color: #555;
+}
+
+.partial-schedule-note {
+  color: orange;
+  margin-left: 10px;
+}

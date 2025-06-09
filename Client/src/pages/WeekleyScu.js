@@ -1,15 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import '../styles/WeekleyScu.css';
-
 const SHIFTS = ['Morning', 'Afternoon', 'Evening'];
-
-const getStartOfWeek = (date = new Date()) => {
-  const d = new Date(date);
-  const dayOfWeek = d.getDay();
-  const diffToSunday = d.getDate() - dayOfWeek;
-  d.setHours(0, 0, 0, 0);
-  return new Date(d.setDate(diffToSunday));
-};
 
 const isDateInWeekRange = (dateToCheck, weekStartDate) => {
   if (!weekStartDate) return false;
@@ -53,12 +44,11 @@ const getWeekDateRangeStringForDisplay = (startDate) => {
 
 const WeeklySchedule = () => {
   const [schedules, setSchedules] = useState({ latest: null, previous: [] });
-  const [selectedSchedule, setSelectedSchedule] = useState('current');
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [idToName, setIdToName] = useState({});
   const [viewMode, setViewMode] = useState('byDay');
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [missingNotes, setMissingNotes] = useState([]);
+
 
   const [user] = useState(() => {
     try {
@@ -70,17 +60,7 @@ const WeeklySchedule = () => {
   const hotelName = user?.Workplace || '';
 
   useEffect(() => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-    if (!hotelName) {
-      setError('User has no assigned workplace');
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
+    
     setError(null);
 
     fetch(`/api/generated-schedules/${encodeURIComponent(hotelName)}`)
@@ -114,31 +94,29 @@ const WeeklySchedule = () => {
           previous: previousSchedules,
           next:nextSchedules,
         });
-
         setIdToName(data.idToName || {});
-        setSelectedSchedule(foundKey !== null ? foundKey : 'latest');
+
+        const getNameOrKey = (key) => {
+          if (!key) return key;
+          return (data.idToName && data.idToName[key]) ? data.idToName[key] : key;
+        };
+
+        if (nextSchedules) {
+          setSelectedSchedule(getNameOrKey('next'));
+        } else if (foundKey !== null) {
+          setSelectedSchedule(getNameOrKey(foundKey));
+        } else {
+          setSelectedSchedule('latest');
+        }
+
       })
       .catch((err) => {
         console.error('Error loading schedules:', err);
         setError('Failed to load schedules. Please try again later.');
         setSchedules({ latest: null, previous: [] });
       })
-      .finally(() => setIsLoading(false));
+      
   }, [user, hotelName]);
-
-  useEffect(() => {
-    if (!hotelName) return;
-    fetch(`/schedule-result/${encodeURIComponent(hotelName)}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.notes && Array.isArray(data.notes)) {
-          setMissingNotes(data.notes);
-        } else {
-          setMissingNotes([]);
-        }
-      })
-      .catch(() => setMissingNotes([]));
-  }, [hotelName]);
 
  const getWorkerName = (workerId) => {
   const strId = String(workerId);
@@ -156,18 +134,6 @@ const getWorkerClass = (name) => {
   return 'worker-ok';
 };
 
-
- 
-  let currentScheduleToDisplay = null;
-  if (selectedSchedule === 'latest') {
-    currentScheduleToDisplay = schedules.latest;
-  } else if (
-    Array.isArray(schedules.previous) &&
-    typeof selectedSchedule === 'number' &&
-    schedules.previous[selectedSchedule]
-  ) {
-    currentScheduleToDisplay = schedules.previous[selectedSchedule];
-  }
 
 
   const renderDayTable = (day, shifts) => {
@@ -189,16 +155,92 @@ const getWorkerClass = (name) => {
               ))}
             </tr>
           </thead>
+         <tbody>
+  {positions.map((position) => (
+    <tr key={position}>
+      <td>{position}</td>
+      {SHIFTS.map((shift) => {
+        const entries = (shifts[shift] || []).filter((e) => e.position === position);
+
+        return (
+          <td key={shift}>
+            {entries.length === 0 ? (
+              '-'
+            ) : (
+              entries.map((entry, index) => {
+                const name = getWorkerName(entry.worker_id);
+                const className = getWorkerClass(name);
+                return (
+                  <span key={entry.worker_id} className={className}>
+                    {name}
+                    {index < entries.length - 1 ? ', ' : ''}
+                  </span>
+                );
+              })
+            )}
+          </td>
+        );
+      })}
+    </tr>
+  ))}
+</tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderWideTable = (schedule) => {
+  if (!schedule || !schedule.schedule) return <p>No schedule found</p>;
+
+  const days = Object.keys(schedule.schedule);
+
+  return SHIFTS.map((shift) => {
+    const positionsSet = new Set();
+    days.forEach((day) => {
+      (schedule.schedule[day][shift] || []).forEach((entry) => {
+        positionsSet.add(entry.position);
+      });
+    });
+
+    const positions = Array.from(positionsSet);
+
+    return (
+      <div className="day-section" key={shift}>
+        <h3>{shift} Shift – Weekly View</h3>
+        <table className="schedule-grid">
+          <thead>
+            <tr>
+              <th>Position</th>
+              {days.map((day) => (
+                <th key={day}>{day}</th>
+              ))}
+            </tr>
+          </thead>
           <tbody>
             {positions.map((position) => (
               <tr key={position}>
                 <td>{position}</td>
-                {SHIFTS.map((shift) => {
-                  const entries = (shifts[shift] || []).filter((e) => e.position === position);
-                  const names = entries.map((entry) => getWorkerName(entry.worker_id)).join(', ');
+                {days.map((day) => {
+                  const entries = (schedule.schedule[day][shift] || []).filter(
+                    (e) => e.position === position
+                  );
+
                   return (
-                    <td key={shift} className={getWorkerClass(names)}>
-                      {names}
+                    <td key={day}>
+                      {entries.length === 0 ? (
+                        '-'
+                      ) : (
+                        entries.map((entry, index) => {
+                          const name = getWorkerName(entry.worker_id);
+                          const className = getWorkerClass(name);
+                          return (
+                            <span key={entry.worker_id} className={className}>
+                              {name}
+                              {index < entries.length - 1 ? ', ' : ''}
+                            </span>
+                          );
+                        })
+                      )}
                     </td>
                   );
                 })}
@@ -208,81 +250,8 @@ const getWorkerClass = (name) => {
         </table>
       </div>
     );
-  };
-
-  const renderWideTable = (schedule) => {
-    if (!schedule || !schedule.schedule) return <p>No schedule found</p>;
-
-    const days = Object.keys(schedule.schedule);
-
-    return SHIFTS.map((shift) => {
-      const positionsSet = new Set();
-      days.forEach((day) => {
-        (schedule.schedule[day][shift] || []).forEach((entry) => {
-          positionsSet.add(entry.position);
-        });
-      });
-
-      const positions = Array.from(positionsSet);
-
-      return (
-        <div className="day-section" key={shift}>
-          <h3>{shift} Shift – Weekly View</h3>
-          <table className="schedule-grid">
-            <thead>
-              <tr>
-                <th>Position</th>
-                {days.map((day) => (
-                  <th key={day}>{day}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {positions.map((position) => (
-                <tr key={position}>
-                  <td>{position}</td>
-                  {days.map((day) => {
-                    const entries = (schedule.schedule[day][shift] || []).filter((e) => e.position === position);
-                    const names = entries.map((entry) => getWorkerName(entry.worker_id)).join(', ');
-                    return (
-                      <td key={day} className={getWorkerClass(names)}>
-                        {names}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-    });
-  };
-
-  // Helper: does user match the missing note (can work, but didn't request)
-  const isNoteRelevantForUser = (note) => {
-    if (!user) return false;
-    // If manager, see all
-    if (user.job && user.job.toLowerCase().includes('manager')) return true;
-    // Check position
-    if (user.job !== note.position) return false;
-    // Check weapon requirement
-    if (note.weapon && !user.WeaponCertified) return false;
-    // Check if user already requested this shift
-    if (Array.isArray(user.selectedDays)) {
-      // selectedDays: [{ day: 'Monday', shifts: ['Morning', ...] }, ...]
-      const [day, shift] = note.shift.split(' ');
-      const dayObj = user.selectedDays.find(d => d.day === day);
-      if (dayObj && Array.isArray(dayObj.shifts) && dayObj.shifts.includes(shift)) {
-        return false; // already requested
-      }
-    }
-    return true;
-  };
-
-  const filteredMissingNotes = user && user.job && user.job.toLowerCase().includes('manager')
-    ? missingNotes
-    : missingNotes.filter(isNoteRelevantForUser);
+  });
+};
 
   // Helper to get the relevant schedule
   const getCurrentSchedule = () => schedules.latest;
@@ -298,7 +267,6 @@ const getWorkerClass = (name) => {
     scheduleToDisplay = getNextSchedule();
   }
 
-  if (isLoading) return <div className="loading-message">Loading schedules...</div>;
   if (error) return <div className="error-message">{error}</div>;
   if (!hotelName && user) return <div className="error-message">User has no assigned workplace</div>;
   if (!user) return null;
@@ -306,23 +274,6 @@ const getWorkerClass = (name) => {
   return (
     <div className="content-wrapper weekly-schedule-page">
       <h1>Work Schedule View - {hotelName}</h1>
-
-      {/* Show missing shifts warning if any, RTL and filtered */}
-      {filteredMissingNotes.length > 0 && (
-        <div className="missing-warning" style={{background:'#fff3cd',border:'1px solid #ffeeba',padding:'16px',marginBottom:'16px',borderRadius:'8px', direction:'rtl', textAlign:'right'}}>
-          <h2 style={{color:'#856404'}}>שימו לב! יש חוסרים בשיבוץ:</h2>
-          {user && user.job && user.job.toLowerCase().includes('manager') && (
-            <div style={{fontWeight:'bold',marginBottom:'8px'}}>סה"כ חוסרים: {filteredMissingNotes.length}</div>
-          )}
-          <ul>
-            {filteredMissingNotes.map((note, idx) => (
-              <li key={idx}>
-                חסר בתפקיד <b>{note.position}</b> במשמרת <b>{note.shift}</b> {note.weapon ? '(נדרש נשק)' : ''}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       <div className="button-fixed-right">
          <button
@@ -363,16 +314,14 @@ const getWorkerClass = (name) => {
       {selectedSchedule === 'next' && !getNextSchedule() && (
         <div className="no-schedule-message">No schedule for the next week</div>
       )}
-
       {scheduleToDisplay && (
-        <div className="schedule-content">
-          <p style={{ textAlign: 'center', fontSize: '1.25em', color: '#555' }}>
-            Schedule for: {getWeekDateRangeStringForDisplay(scheduleToDisplay.relevantWeekStartDate)}
-            {scheduleToDisplay.status === 'partial' && (
-              <span style={{ color: 'orange', marginLeft: '10px' }}>(Partial schedule)</span>
-            )}
-          </p>
-
+      <div className="schedule-content">
+      <p className="schedule-header">
+      Schedule for: {getWeekDateRangeStringForDisplay(scheduleToDisplay.relevantWeekStartDate)}
+      {scheduleToDisplay.status === 'partial' && (
+        <span className="partial-schedule-note">(Partial schedule)</span>
+      )}
+       </p>
           {viewMode === 'byDay'
             ? Object.entries(scheduleToDisplay.schedule).map(([day, shifts]) =>
                 renderDayTable(day, shifts)
