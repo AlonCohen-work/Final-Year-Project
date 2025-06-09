@@ -1,19 +1,76 @@
-# להתעלם מתיקיית node_modules הראשית
+# OS-specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python virtual environments and caches
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+.eggs/
+.cache/
+.pytest_cache/
+coverage.*
+*.cover
+htmlcov/
+.tox/
+
+# IntelliJ/PyCharm
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Black formatting cache (אם אי פעם הותקן שוב)
+.black
+
+# Node.js
 /node_modules
-
-# להתעלם מקבצי pem (קבצי מפתחות ואישורים)
-pem.*
-
-# להתעלם מתיקיית idea של IntelliJ
-/idea.
-
-# להתעלם מתיקיות node_modules בתוך צד הלקוח והשרת
 Client/node_modules
 Server/node_modules
-
-# להתעלם מקבצי package-lock.json של צד הלקוח והשרת
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
 Client/package-lock.json
 Server/package-lock.json
+.pnpm-debug.log
 
-.qodo
+# SSL/PEM Certificates
+pem.*
+*.pem
+
+# Build outputs
+dist/
+build/
+out/
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Environment variables
 .env
+.env.*
+*.env
+
+# qodo settings
+.qodo/
+
+# Misc
+*.swp
+*.swo
+*.tmp
+*.bak
+*.old
+*.orig
