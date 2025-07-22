@@ -218,7 +218,7 @@ app.post("/api/run-scheduler/:hotelName", (req, res) => {
   }
 
   const managerIdForPython = 4;
-  const pythonExe = 'C:/Users/1/Documents/Final-Year-Project/.venv/Scripts/python.exe';
+  const pythonExe = 'D:/New folder/Final-Year-Project/Final-Year-Project/Python/.venv/Scripts/python.exe';
   const pythonScriptAbsolutePath = path.join(__dirname, "..", "Python", "Constraints.py");
   const command = `"${pythonExe}" "${pythonScriptAbsolutePath}" --mode manual --manager-id ${managerIdForPython} --target-week ${targetWeekStartDate}`;
 
@@ -336,7 +336,7 @@ app.get("/api/generated-schedules/:hotelName", (req, res) => {
 
 
 
-// מוסיף נתיב חדש לקבלת תוצאות שיבוץ עם בעיות
+// Route to get current problematic schedule result for a hotel
 app.get("/schedule-result/:hotelName", (req, res) => {
   const hotelName = req.params.hotelName;
 
@@ -357,6 +357,8 @@ app.get("/schedule-result/:hotelName", (req, res) => {
     });
   });
 });
+
+// Retrieve the 10 most recent announcements (sorted by date descending)
 app.get("/api/announcements", (req, res) => {
   announcements_coll.find().sort({ date: -1 }).limit(10, (err, docs) => {
     if (err) {
@@ -366,6 +368,7 @@ app.get("/api/announcements", (req, res) => {
   });
 });
 
+// Post a new announcement
 app.post("/api/announcements", (req, res) => {
   const { message } = req.body;
   if (!message) {
@@ -379,10 +382,11 @@ app.post("/api/announcements", (req, res) => {
     res.json({ success: true, inserted: doc });
   });
 });
+
+// Delete an announcement by ID
 app.delete("/api/announcements/:id", (req, res) => {
   const id = req.params.id;
   if (!id) return res.status(400).json({ success: false });
-
   announcements_coll.remove({ _id: mongojs.ObjectId(id) }, (err, result) => {
     if (err) return res.status(500).json({ success: false });
     res.json({ success: true });
