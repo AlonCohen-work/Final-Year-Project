@@ -10,6 +10,7 @@ import argparse
 
 DUMMY_ID = -1
 
+#Constrain one_shift_per_day
 def one_shift_per_day(variables, model, workers, variable_model, days):
     for worker in workers:
         worker_id = worker['_id']
@@ -29,6 +30,7 @@ def one_shift_per_day(variables, model, workers, variable_model, days):
             if assignments:
                 model.Add(sum(assignments) <= 1)
 
+#Constrain at_least_one_day_off
 def at_least_one_day_off(variables, model, workers, variable_model, days):
     for worker in workers:
         worker_id = worker['_id']
@@ -52,6 +54,7 @@ def at_least_one_day_off(variables, model, workers, variable_model, days):
                 works_that_day_list.append(works_that_day)
         model.Add(sum(works_that_day_list) <= 6)
 
+#Constrain  no_morning_after_evening
 def no_morning_after_evening(variables, model, workers, variable_model, days):
     for worker in workers:
         worker_id = worker['_id']
@@ -80,6 +83,7 @@ def no_morning_after_evening(variables, model, workers, variable_model, days):
                 for mo in morning_vars:
                     model.AddBoolOr([ev.Not(), mo.Not()])
 
+#Constrain fairness for workers
 def fairness_constraint(variables, model, workers, variable_model):
     worker_ids = [w['_id'] for w in workers if w['_id'] != DUMMY_ID]
     availability_limits = {w['_id']: sum(len(day['shifts']) for day in w.get('selectedDays', [])) for w in workers if w['_id'] != DUMMY_ID}
@@ -111,6 +115,7 @@ def fairness_constraint(variables, model, workers, variable_model):
             model.Add(diff <= 3).OnlyEnforceIf(model.NewBoolVar(f"fair_soft_{i}_{j}"))
             model.Add(diff >= -3).OnlyEnforceIf(model.NewBoolVar(f"fair_soft_{j}_{i}"))
 
+#Constrain prevent_sunday_morning_after_saturday_evening_last_week
 def prevent_sunday_morning_after_saturday_evening_last_week(variables, model, variable_model, workers_to_restrict):
     if not workers_to_restrict:
         print(" No workers to restrict for Sunday Morning based on last week's Saturday Evening.")
@@ -129,6 +134,7 @@ def prevent_sunday_morning_after_saturday_evening_last_week(variables, model, va
                 if worker_id in original_possible_ids:
                     cp_var = variable_model[var_name]
                     model.Add(cp_var != worker_id)
+
 
 def solution_by_day(solver, variable_model, variables, days):
     shifts = ['Morning', 'Afternoon', 'Evening']
@@ -339,6 +345,7 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
     upsert=True)
     print(f"Schedule saved to MongoDB (collection: result) for week {target_week_str}")
 
+# Scheduled Auto Run Function
 def scheduled_auto():
     print(f"\n--- Starting scheduled_auto run at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
     db = connect()

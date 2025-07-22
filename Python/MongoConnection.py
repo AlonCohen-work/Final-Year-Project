@@ -5,7 +5,7 @@ mongo_client = None
 mongo_db = None
 
 def connect_to_mongo():
-    """התחברות למונגו - פעם אחת"""
+     #Connect to MongoDB (single-use connection)
     global mongo_client, mongo_db
     if mongo_client is None:
         try:
@@ -18,7 +18,7 @@ def connect_to_mongo():
             return False
     return True
 def connect():
-    """התחברות למונגו - פעם אחת"""
+  #Alternative connection function to MongoDB (returns the DB instance)
     global mongo_client, mongo_db
     if mongo_client is None:
         try:
@@ -29,21 +29,19 @@ def connect():
         except Exception as e:
             print("Error connecting to MongoDB:", str(e))
             return None
-    return mongo_db  # ✅ מחזיר את אובייקט המסד
+    return mongo_db  # returns the DB object
 
 
 def getData(user_id):
-    """
-    מביא את כל המידע הדרוש מהמונגו:
-    1. מידע על המנהל
-    2. מידע על המלון והאילוצים שלו
-    3. העובדים מחולקים לקטגוריות
-    """
+    #Retrieve all required data from MongoDB:
+    #1. Manager info
+    #2. Hotel (Workplace) info and defined schedule
+    #3. All hotel employees categorized by roles and weapon certification
     if connect_to_mongo() is not True:
         return None
 
     try:
-        # המרת ID למספר אם הוא מגיע כמחרוזת
+        # Convert user_id to int if it was passed as a string
         if isinstance(user_id, str):
             try:
                 user_id = int(user_id)
@@ -51,13 +49,13 @@ def getData(user_id):
                 print("Invalid user ID format - must be a number")
                 return None
 
-        # 1. מידע על המנהל
+        # 1. Fetch manager info
         manager = mongo_db["people"].find_one({"_id": user_id})
         if manager is None:
             print(f"Manager not found with ID: {user_id}")
             return None
 
-        # 2. מידע על המלון
+        # 2. Fetch hotel (workplace) info
         hotel_name = manager.get("Workplace")
         if hotel_name is None:
             print("Manager has no workplace assigned")
@@ -68,7 +66,7 @@ def getData(user_id):
             print(f"Hotel not found with name: {hotel_name}")
             return None
 
-        # נדפיס את האילוצים שהמנהל הגדיר
+       # Parse and structure the defined schedule (if exists)
         schedule = hotel.get("schedule", {})
         if schedule:
             #print("\nHotel Schedule (defined by manager):")
@@ -93,10 +91,10 @@ def getData(user_id):
         else:
             print("\nNo schedule defined for this hotel yet!")
 
-        # 3. הבאת כל העובדים של המלון
+        # 3. Get all workers associated with the hotel
         all_workers = list(mongo_db["people"].find({"Workplace": hotel_name}))
         
-        # 4. חלוקת העובדים לקטגוריות
+        # 4. Categorize workers
         categorized_workers = {
             "shift_managers": [],
             "with_weapon": [],
@@ -127,7 +125,7 @@ def getData(user_id):
         return None
 
 def close_mongo_connection():
-    """סגירת החיבור למונגו"""
+    #Close MongoDB connection
     global mongo_client, mongo_db
     if mongo_client:
         try:

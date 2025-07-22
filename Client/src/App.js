@@ -1,11 +1,9 @@
 import React from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
-
 import Navbar from "./components/Navbar";
 import HomePage from "./components/HomePage";
 import Login from "./components/Login";
-
-import WeekleyScu from "./pages/WeekleyScu";  // Corrected import path
+import WeekleyScu from "./pages/WeekleyScu";  
 import ManageHours from "./pages/ManageHours";
 import EmployeeRequest from "./pages/EmployeeRequest";
 function App() {
