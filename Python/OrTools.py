@@ -1,90 +1,74 @@
-from Algo import run_algo, available_workers 
+# --- START OF FILE OrTools.py ---
+
 from ortools.sat.python import cp_model
 
-# information of all the workers that can work in a shift 
 def available_shift(variables, available_employee, id_to_worker):
+    """
+    Filters the list of possible workers for each shift variable.
+    It refines the list from run_algo to only include workers who have explicitly
+    stated they are available for that specific day and shift.
+    """
     for var_name, var_info in variables.items():
         day = var_info['day']
         shift = var_info['shift']
         position = var_info['position']
         
-        # Initialize empty list for possible workers
-        possible_workers = []
+        possible_worker_ids = set()
         
-        # Check if we have available workers for this day and shift
+        # Check if availability data exists for this day and shift
         if day in available_employee and shift in available_employee[day]:
-            # Get the appropriate worker list based on position requirements
+            availability_data = available_employee[day][shift]
+            
+            # Determine the required qualifications for the position
             if position == 'Shift Supervisor':
                 # Only shift managers can be supervisors
-                worker_ids = available_employee[day][shift]['shift_managers']
-            elif var_info.get('required_weapon', True):
-                # For positions requiring weapons, can use:
-                # 1. Shift managers (they can do any position)
-                # 2. Workers with weapons
-                worker_ids = set(
-                    available_employee[day][shift]['shift_managers'] +
-                    available_employee[day][shift]['with_weapon']
-                )
+                possible_worker_ids.update(availability_data['shift_managers'])
+            elif var_info.get('required_weapon'):
+                # For positions requiring a weapon, shift managers and workers with weapons are eligible
+                possible_worker_ids.update(availability_data['shift_managers'])
+                possible_worker_ids.update(availability_data['with_weapon'])
             else:
-                # For positions not requiring weapons, can use:
-                # 1. Shift managers (they can do any position)
-                # 2. Workers with weapons (they can do both)
-                # 3. Workers without weapons
-                worker_ids = set(
-                    available_employee[day][shift]['shift_managers'] +
-                    available_employee[day][shift]['with_weapon'] +
-                    available_employee[day][shift]['without_weapon']
-                )
-            
-            # Convert IDs to worker objects
-            possible_workers = [id_to_worker[worker_id] for worker_id in worker_ids]
-            
-            # print(f"\nFor {day} {shift} {position}:")
-            # print(f"Found {len(possible_workers)} possible workers:")
-            # for worker in possible_workers:
-            #     print(f"- {worker.get('name', 'Unknown')} (ID: {worker['_id']})")
-            #     # Print worker's qualifications
-            #     if worker['_id'] in available_employee[day][shift]['shift_managers']:
-            #         print("  * Can be shift manager")
-            #     if worker['_id'] in available_employee[day][shift]['with_weapon']:
-            #         print("  * Can work with weapon")
-            #     if worker['_id'] in available_employee[day][shift]['without_weapon']:
-            #         print("  * Can work without weapon")
+                # For positions not requiring a weapon, anyone available can work
+                possible_worker_ids.update(availability_data['shift_managers'])
+                possible_worker_ids.update(availability_data['with_weapon'])
+                possible_worker_ids.update(availability_data['without_weapon'])
         
-        var_info['possible_workers'] = possible_workers
+        # Update the variable's possible workers with the filtered list of worker objects
+        var_info['possible_workers'] = [id_to_worker[worker_id] for worker_id in possible_worker_ids]
         
     return variables
-#creating the variables for the algo that he can use them 
-def variables_for_shifts(variables, model):
-    variablesModel = {}
-    for var_name, var_info in variables.items():
-        workers = var_info['possible_workers']
-        worker_id = [w['_id'] for w in workers]
 
-        if not worker_id:
+def variables_for_shifts(variables, model):
+    """
+    Creates the core OR-Tools variables for the constraint satisfaction problem.
+    Each variable represents a shift to be filled, and its domain is the set of
+    IDs of workers who can be assigned to it.
+    """
+    variable_model = {}
+    for var_name, var_info in variables.items():
+        possible_worker_ids = [w['_id'] for w in var_info['possible_workers']]
+
+        # Only create a variable if there is at least one possible worker (including dummies later)
+        if not possible_worker_ids:
+            print(f"Warning: No possible workers for {var_name}. This shift cannot be filled.")
             continue
          
-        variablesKey = model.NewIntVarFromDomain(
-            cp_model.Domain.FromValues(worker_id), var_name
-        )
-        variablesModel[var_name] = variablesKey
+        # Create an integer variable whose value must be one of the possible worker IDs.
+        domain = cp_model.Domain.FromValues(possible_worker_ids)
+        variable_model[var_name] = model.NewIntVarFromDomain(domain, var_name)
 
-    return variablesModel
+    return variable_model
 
 def print_possible_workers_per_shift(variables):
-    print("\n=== Possible Workers for Each Shift ===")
-    # for var_name, var_info in variables.items():
-    #     possible_workers = var_info['possible_workers']
-    #     real_workers = [w for w in possible_workers if w['_id'] > 0]  # Exclude dummies (negative IDs)
-    #     print(f"{var_name}: {len(real_workers)} real possible workers")
-    #     for worker in real_workers:
-    #         quals = []
-    #         if worker.get('ShiftManager'):
-    #             quals.append('Shift Manager')
-    #         if worker.get('WeaponCertified'):
-    #             quals.append('With Weapon')
-    #         if not worker.get('WeaponCertified'):
-    #             quals.append('Without Weapon')
-    #         print(f"  - {worker.get('name', 'Unknown')} (ID: {worker['_id']}), {'/'.join(quals)}")
-    #     if not real_workers:
-    #         print("  !! No real possible workers for this shift !!")
+    """
+    A helper function for debugging to print the potential candidates for each shift.
+    """
+    print("\n--- Possible Workers for Each Shift (After Availability Filter) ---")
+    for var_name, var_info in sorted(variables.items()):
+        real_workers = [w for w in var_info['possible_workers'] if w['_id'] > 0]
+        
+        if not real_workers:
+            print(f"{var_name}: !! No real workers available for this shift !!")
+        else:
+            worker_names = [w.get('name', 'Unknown') for w in real_workers]
+            print(f"{var_name}: {len(worker_names)} possible workers -> {', '.join(worker_names)}")
