@@ -55,7 +55,7 @@ SafeShift includes the following components:
 | Backend        | Node.js, Express.js    |
 | Database       | MongoDB                |
 | Optimization   | Python, Google OR-Tools (cp_model) |
-| Hosting/Deployment | *Optional: Add here if deployed* |
+
 
 ## Features
 
