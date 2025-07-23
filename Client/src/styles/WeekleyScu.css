@@ -97,9 +97,6 @@ h1 {
   background-color: #3c5894;
 }
 
-.button-fixed-right button.active {
-  background-color: #f97316;
-}
 .schedule-header {
   text-align: center;
   font-size: 1.25em;
@@ -109,4 +106,16 @@ h1 {
 .partial-schedule-note {
   color: orange;
   margin-left: 10px;
+}
+
+
+.dropdown-previous-selector select {
+  padding: 4px 8px;
+  font-size: 14px;
+  border-radius: 4px;
+  border: 1px solid #aaa;
+}
+
+.dropdown-previous-selector label {
+  font-weight: 500;
 }

@@ -1,74 +1,67 @@
 # --- START OF FILE OrTools.py ---
 
 from ortools.sat.python import cp_model
+import logging
+
+logger = logging.getLogger(__name__)
 
 def available_shift(variables, available_employee, id_to_worker):
     """
-    Filters the list of possible workers for each shift variable.
-    It refines the list from run_algo to only include workers who have explicitly
-    stated they are available for that specific day and shift.
+    Filters the list of possible workers for each shift variable based on their
+    explicitly stated availability for that specific day and shift.
     """
-    for var_name, var_info in variables.items():
-        day = var_info['day']
-        shift = var_info['shift']
-        position = var_info['position']
-        
-        possible_worker_ids = set()
-        
-        # Check if availability data exists for this day and shift
-        if day in available_employee and shift in available_employee[day]:
-            availability_data = available_employee[day][shift]
+    logger.info("Filtering possible workers based on specific shift availability...")
+    try:
+        for var_name, var_info in variables.items():
+            day = var_info['day']
+            shift = var_info['shift']
+            position = var_info['position']
             
-            # Determine the required qualifications for the position
-            if position == 'Shift Supervisor':
-                # Only shift managers can be supervisors
-                possible_worker_ids.update(availability_data['shift_managers'])
-            elif var_info.get('required_weapon'):
-                # For positions requiring a weapon, shift managers and workers with weapons are eligible
-                possible_worker_ids.update(availability_data['shift_managers'])
-                possible_worker_ids.update(availability_data['with_weapon'])
-            else:
-                # For positions not requiring a weapon, anyone available can work
-                possible_worker_ids.update(availability_data['shift_managers'])
-                possible_worker_ids.update(availability_data['with_weapon'])
-                possible_worker_ids.update(availability_data['without_weapon'])
+            possible_worker_ids = set()
+            
+            if day in available_employee and shift in available_employee[day]:
+                availability_data = available_employee[day][shift]
+                
+                if position == 'Shift Supervisor':
+                    possible_worker_ids.update(availability_data.get('shift_managers', []))
+                elif var_info.get('required_weapon'):
+                    possible_worker_ids.update(availability_data.get('shift_managers', []))
+                    possible_worker_ids.update(availability_data.get('with_weapon', []))
+                else:
+                    possible_worker_ids.update(availability_data.get('shift_managers', []))
+                    possible_worker_ids.update(availability_data.get('with_weapon', []))
+                    possible_worker_ids.update(availability_data.get('without_weapon', []))
+            
+            # Update the variable's possible workers with the filtered list of full worker objects
+            var_info['possible_workers'] = [id_to_worker[wid] for wid in possible_worker_ids if wid in id_to_worker]
         
-        # Update the variable's possible workers with the filtered list of worker objects
-        var_info['possible_workers'] = [id_to_worker[worker_id] for worker_id in possible_worker_ids]
-        
-    return variables
+        logger.info("Finished filtering possible workers.")
+        return variables
+    except Exception as e:
+        logger.error(f"An error occurred in available_shift: {e}", exc_info=True)
+        return variables # Return original variables on error
 
 def variables_for_shifts(variables, model):
     """
-    Creates the core OR-Tools variables for the constraint satisfaction problem.
-    Each variable represents a shift to be filled, and its domain is the set of
-    IDs of workers who can be assigned to it.
+    Creates the core OR-Tools integer variables for the constraint solver.
+    Each variable's domain is the set of IDs of workers who can be assigned to it.
     """
+    logger.info("Creating OR-Tools model variables for each shift...")
     variable_model = {}
-    for var_name, var_info in variables.items():
-        possible_worker_ids = [w['_id'] for w in var_info['possible_workers']]
+    try:
+        for var_name, var_info in variables.items():
+            possible_worker_ids = [w['_id'] for w in var_info.get('possible_workers', [])]
 
-        # Only create a variable if there is at least one possible worker (including dummies later)
-        if not possible_worker_ids:
-            print(f"Warning: No possible workers for {var_name}. This shift cannot be filled.")
-            continue
-         
-        # Create an integer variable whose value must be one of the possible worker IDs.
-        domain = cp_model.Domain.FromValues(possible_worker_ids)
-        variable_model[var_name] = model.NewIntVarFromDomain(domain, var_name)
-
-    return variable_model
-
-def print_possible_workers_per_shift(variables):
-    """
-    A helper function for debugging to print the potential candidates for each shift.
-    """
-    print("\n--- Possible Workers for Each Shift (After Availability Filter) ---")
-    for var_name, var_info in sorted(variables.items()):
-        real_workers = [w for w in var_info['possible_workers'] if w['_id'] > 0]
+            if not possible_worker_ids:
+                # This case is handled by dummy workers, but a warning is useful.
+                logger.warning(f"Shift '{var_name}' has no available workers. It will require a dummy assignment.")
+                continue
+            
+            domain = cp_model.Domain.FromValues(possible_worker_ids)
+            variable_model[var_name] = model.NewIntVarFromDomain(domain, var_name)
         
-        if not real_workers:
-            print(f"{var_name}: !! No real workers available for this shift !!")
-        else:
-            worker_names = [w.get('name', 'Unknown') for w in real_workers]
-            print(f"{var_name}: {len(worker_names)} possible workers -> {', '.join(worker_names)}")
+        logger.info(f"Created {len(variable_model)} OR-Tools variables.")
+        return variable_model
+    except Exception as e:
+        logger.error(f"An error occurred in variables_for_shifts: {e}", exc_info=True)
+        return {}

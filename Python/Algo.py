@@ -1,147 +1,127 @@
 # --- START OF FILE Algo.py ---
 
 from MongoConnection import getData
+import logging
 
-# Function to run the algorithm and create variables for each shift, position, and day
-# This function retrieves data for a specific user (manager) and constructs a set of variables
+logger = logging.getLogger(__name__)
+
 def run_algo(user_id):    
+    """
+    Fetches data and creates the initial "variables" for the scheduling problem.
+    Each variable represents a single shift slot that needs to be filled.
+    """
+    logger.info(f"Starting run_algo for user_id: {user_id}")
     data = getData(user_id)
     
     if data is None:
-        print("Manager not found")
-        return 
-   
-    # Store the retrieved data in separate variables for clarity
-    hotel_schedule = data["hotel"]["schedule"]
-    shift_managers = data["workers"]["shift_managers"]
-    with_weapon = data["workers"]["with_weapon"]
-    without_weapon = data["workers"]["without_weapon"]
+        logger.error(f"Could not retrieve data for user_id {user_id}. Aborting run_algo.")
+        return None
+    
+    try:
+        hotel_schedule = data["hotel"]["schedule"]
+        shift_managers = data["workers"]["shift_managers"]
+        with_weapon = data["workers"]["with_weapon"]
+        without_weapon = data["workers"]["without_weapon"]
 
-    variables = {}
-    # Loop through each shift, position, and day to create a variable for each required slot.
-    # These variables represent the individual shifts that need to be filled.
-    for shift, positions in hotel_schedule.items():
-        for position, days in positions.items():
-            for day, requirements in days.items():
-                if position == "Shift Supervisor":
-                    var_name = f'{shift}_{position}_{day}'
-                    variables[var_name] = {
-                        "shift": shift,
-                        "position": position,
-                        "day": day,
-                        "possible_workers": shift_managers  # Only shift managers can be supervisors
-                    }
-                else:
-                    # For other positions, check weapon requirements
-                    weapon_needed = requirements.get("weapon", 0)
-                    no_weapon_needed = requirements.get("noWeapon", 0)
-
-                    # Create variables for slots requiring a weapon
-                    for i in range(weapon_needed):
-                        var_name = f"{shift}_{position}_{day}_weapon{i}"
+        variables = {}
+        # Loop through the schedule defined for the hotel to create a variable for each slot.
+        for shift, positions in hotel_schedule.items():
+            for position, days in positions.items():
+                for day, requirements in days.items():
+                    # Create a variable for the shift supervisor role
+                    if position == "Shift Supervisor":
+                        var_name = f'{shift}_{position}_{day}'
                         variables[var_name] = {
-                            "shift": shift,
-                            "position": position,
-                            "day": day,
-                            "required_weapon": True,
-                            # Workers with weapons and shift managers can fill these slots
-                            "possible_workers": shift_managers + with_weapon
+                            "shift": shift, "position": position, "day": day,
+                            "possible_workers": shift_managers
                         }
-                    
-                    # Create variables for slots not requiring a weapon
-                    for i in range(no_weapon_needed):
-                        var_name = f"{shift}_{position}_{day}_noweapon{i}"
-                        variables[var_name] = {
-                            "shift": shift,
-                            "position": position,
-                            "day": day,
-                            "required_weapon": False,
-                            # Any worker can fill these slots
-                            "possible_workers": without_weapon + shift_managers + with_weapon
-                        }   
+                    # Create variables for other roles based on weapon needs
+                    else:
+                        weapon_needed = requirements.get("weapon", 0)
+                        no_weapon_needed = requirements.get("noWeapon", 0)
 
-    # Return all the necessary data for the constraint solver
-    return {
-        "variables": variables,
-        "workers": {
-            "shift_managers": shift_managers,
-            "with_weapon": with_weapon,
-            "without_weapon": without_weapon
-        },
-        "hotel": {
-            "name": data["hotel"]["name"]
+                        for i in range(weapon_needed):
+                            var_name = f"{shift}_{position}_{day}_weapon{i}"
+                            variables[var_name] = {
+                                "shift": shift, "position": position, "day": day, "required_weapon": True,
+                                "possible_workers": shift_managers + with_weapon
+                            }
+                        
+                        for i in range(no_weapon_needed):
+                            var_name = f"{shift}_{position}_{day}_noweapon{i}"
+                            variables[var_name] = {
+                                "shift": shift, "position": position, "day": day, "required_weapon": False,
+                                "possible_workers": without_weapon + shift_managers + with_weapon
+                            }
+
+        logger.info(f"Successfully created {len(variables)} shift variables.")
+        return {
+            "variables": variables,
+            "workers": data["workers"],
+            "hotel": data["hotel"]
         }
-    }
+    except KeyError as e:
+        logger.error(f"Missing expected key in data structure from getData: {e}", exc_info=True)
+        return None
+    except Exception as e:
+        logger.error(f"An unexpected error occurred in run_algo: {e}", exc_info=True)
+        return None
 
-# Find all workers who are available for each specific day and shift
 def available_workers(workers):
+    """
+    Processes worker data to create a lookup structure for availability.
+    Result: {day: {shift: {qualification: [worker_id]}}}
+    Also returns a map of worker_id to the full worker object.
+    """
+    logger.info("Processing worker availability...")
     available_employee = {}
     id_to_worker = {}
     
-    all_worker_groups = [
-        (workers["shift_managers"], "shift_managers"),
-        (workers["with_weapon"], "with_weapon"),
-        (workers["without_weapon"], "without_weapon")
-    ]
+    try:
+        all_worker_groups = [
+            workers.get("shift_managers", []),
+            workers.get("with_weapon", []),
+            workers.get("without_weapon", [])
+        ]
 
-    for worker_group, group_name in all_worker_groups:
-        for worker in worker_group:
-            # Create a map from worker ID to worker object for easy lookup
-            if worker['_id'] not in id_to_worker:
-                id_to_worker[worker['_id']] = worker
-            
-            worker_id = worker['_id']
-            # Loop through the days and shifts the worker has marked as available
-            for day_info in worker.get("selectedDays", []):
-                day = day_info["day"]
-                for shift in day_info["shifts"]:
-                    # Use setdefault to create nested dictionaries if they don't exist
-                    shift_availability = available_employee.setdefault(day, {}).setdefault(shift, {
-                        "with_weapon": [],
-                        "without_weapon": [],
-                        "shift_managers": []
-                    })
-                    
-                    # Add worker ID to the appropriate lists based on their qualifications
-                    is_manager = worker.get("ShiftManager", False)
-                    has_weapon = worker.get("WeaponCertified", False)
-                    
-                    # A manager can work any shift, including with/without weapon roles
-                    if is_manager:
-                        shift_availability["shift_managers"].append(worker_id)
-                        shift_availability["with_weapon"].append(worker_id)
-                        shift_availability["without_weapon"].append(worker_id)
-                    # A non-manager with a weapon can work with/without weapon roles
-                    elif has_weapon:
-                        shift_availability["with_weapon"].append(worker_id)
-                        shift_availability["without_weapon"].append(worker_id)
-                    # A non-manager without a weapon can only work without weapon roles
-                    else:
-                        shift_availability["without_weapon"].append(worker_id)
-
-    # Remove duplicates that might occur (e.g., manager added multiple times)
-    for day, shifts in available_employee.items():
-        for shift, categories in shifts.items():
-            for category, worker_ids in categories.items():
-                available_employee[day][shift][category] = list(set(worker_ids))
+        for worker_group in all_worker_groups:
+            for worker in worker_group:
+                worker_id = worker['_id']
+                if worker_id not in id_to_worker:
+                    id_to_worker[worker_id] = worker
                 
-    return available_employee, id_to_worker               
+                for day_info in worker.get("selectedDays", []):
+                    day = day_info.get("day")
+                    if not day: continue
 
-# Main execution block for testing purposes
-if __name__ == "__main__":
-    manager_id = 4
-    result = run_algo(manager_id)
-    if result:
-        # Combine all worker lists into one for processing
-        all_workers = (result['workers']['shift_managers'] + 
-                       result['workers']['with_weapon'] + 
-                       result['workers']['without_weapon'])
+                    for shift in day_info.get("shifts", []):
+                        # setdefault is a clean way to initialize nested dicts
+                        shift_availability = available_employee.setdefault(day, {}).setdefault(shift, {
+                            "with_weapon": set(), "without_weapon": set(), "shift_managers": set()
+                        })
+                        
+                        is_manager = worker.get("ShiftManager", False)
+                        has_weapon = worker.get("WeaponCertified", False)
+                        
+                        # Add worker ID to all categories they are qualified for. Using sets to handle duplicates automatically.
+                        if is_manager:
+                            shift_availability["shift_managers"].add(worker_id)
+                            shift_availability["with_weapon"].add(worker_id)
+                            shift_availability["without_weapon"].add(worker_id)
+                        elif has_weapon:
+                            shift_availability["with_weapon"].add(worker_id)
+                            shift_availability["without_weapon"].add(worker_id)
+                        else:
+                            shift_availability["without_weapon"].add(worker_id)
+
+        # Convert sets back to lists for consistent data structure
+        for day, shifts in available_employee.items():
+            for shift, categories in shifts.items():
+                for category, worker_ids_set in categories.items():
+                    available_employee[day][shift][category] = list(worker_ids_set)
         
-        availability, id_to_worker_map = available_workers(result['workers'])
-        
-        # Example of how to print the results
-        # print("--- Availability Map ---")
-        # import json
-        # print(json.dumps(availability, indent=2))
-        # print("\n--- ID to Worker Map ---")
-        # print(json.dumps(id_to_worker_map, indent=2))
+        logger.info("Successfully processed worker availability.")
+        return available_employee, id_to_worker
+    except Exception as e:
+        logger.error(f"An error occurred while processing available_workers: {e}", exc_info=True)
+        return {}, {}

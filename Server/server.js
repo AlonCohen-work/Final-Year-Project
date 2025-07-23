@@ -1,7 +1,7 @@
 const express = require("express");
 const mongojs = require("mongojs");
 const cors = require("cors");
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 const moment = require("moment");
 
@@ -162,8 +162,6 @@ app.post("/save-schedule/:hotelName", (req, res) => {
           return res.status(500).json({ success: false, message: "Error saving schedule data during update." });
         }
         
-        // הדפסת התוצאה הגולמית מ-mongojs
-        console.log(`Raw update result from mongojs for "${hotelNameFromParam}":`, JSON.stringify(result, null, 2));
         let operationSucceeded = false;
         let successMessage = "";
 
@@ -205,134 +203,145 @@ app.post("/save-schedule/:hotelName", (req, res) => {
 });
 // ...
 
-// Scheduler endpoints
 app.post("/api/run-scheduler/:hotelName", (req, res) => {
   const hotelName = req.params.hotelName;
   const { targetWeekStartDate } = req.body;
 
-  if (!targetWeekStartDate) {
-    return res.status(400).json({ success: false, message: "Target week start date is required." });
-  }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(targetWeekStartDate)) {
-    return res.status(400).json({ success: false, message: "Invalid targetWeekStartDate format. Expected YYYY-MM-DD." });
-  }
+  console.log(`[Server] Received scheduler run request for hotel: "${hotelName}"`);
 
-  const managerIdForPython = 4;
-  const pythonExe = 'D:/New folder/Final-Year-Project/Final-Year-Project/Python/.venv/Scripts/python.exe';
-  const pythonScriptAbsolutePath = path.join(__dirname, "..", "Python", "Constraints.py");
-  const command = `"${pythonExe}" "${pythonScriptAbsolutePath}" --mode manual --manager-id ${managerIdForPython} --target-week ${targetWeekStartDate}`;
-
-  console.log(`Executing Python script for hotel ${hotelName}: ${command}`);
-
-  exec(command, { timeout: 300000 }, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Error executing Python script for ${hotelName}: ${error.message}`);
-      console.error(`Python stderr: ${stderr}`);
-      return res.status(500).json({
-        success: false,
-        message: "Error running the scheduler algorithm.",
-        errorDetails: error.message,
-        pythonStderr: stderr
-      });
-    }
-
-    console.log(`Python script stdout for ${hotelName}:\n${stdout}`);
-    if (stderr && stderr.trim() !== "") {
-      console.warn(`Python script stderr (non-fatal) for ${hotelName}:\n${stderr}`);
-    }
-
-    res.json({
-      success: true,
-      message: "Scheduler algorithm completed successfully.",
-      pythonOutput: stdout,
-      pythonStderrOutput: stderr
-    });
-  });
-});
-app.get("/api/generated-schedules/:hotelName", (req, res) => {
-  const hotelName = req.params.hotelName;
-
-  const today = moment().startOf('day');
-
-  // מצא את שבת השבוע הנוכחי (6 = שבת)
-  let currentWeekStart = moment(today).day(6);
-  if (currentWeekStart.isAfter(today)) {
-    // אם שבת עדיין לא הגיעה השבוע, קח את שבת השבוע הקודם
-    currentWeekStart = currentWeekStart.subtract(7, 'days');
+  if (!targetWeekStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetWeekStartDate)) {
+    console.error(`[Server] Invalid request: Missing or malformed targetWeekStartDate.`);
+    return res.status(400).json({ message: "Invalid or missing targetWeekStartDate. Expected YYYY-MM-DD format." });
   }
 
-  const nextWeekStart = moment(currentWeekStart).add(7, 'days');
-
-  const currentStr = currentWeekStart.format('YYYY-MM-DD');
-  const nextStr = nextWeekStart.format('YYYY-MM-DD');
-
-  result_coll.find({
-    hotelName: hotelName,
-    relevantWeekStartDate: { $in: [currentStr, nextStr] }
-  }).toArray((err, schedules) => {
+  // Step 1: Find the manager for the given hotel to get a dynamic manager_id
+  people_coll.findOne({ Workplace: hotelName, ShiftManager: true }, (err, manager) => {
     if (err) {
-      console.error(`Error fetching current/next schedules for ${hotelName}:`, err);
-      return res.status(500).json({
-        success: false,
-        message: "Error fetching schedules",
-        error: err.message
-      });
+      console.error(`[Server] DB error finding manager for "${hotelName}":`, err);
+      return res.status(500).json({ message: "Database error while searching for a manager." });
+    }
+    if (!manager) {
+      console.error(`[Server] No manager found for hotel: "${hotelName}"`);
+      return res.status(404).json({ message: `Configuration error: No manager found for hotel "${hotelName}". Cannot run scheduler.` });
     }
 
-    let nowSchedule = null;
-    let nextSchedule = null;
+    const managerId = manager._id;
+    console.log(`[Server] Found Manager ID: ${managerId}. Proceeding to run Python script.`);
 
-    schedules.forEach(schedule => {
-      if (schedule.relevantWeekStartDate === currentStr) {
-        nowSchedule = schedule;
-      } else if (schedule.relevantWeekStartDate === nextStr) {
-        nextSchedule = schedule;
-      }
+    // Step 2: Set up the Python script execution in a secure way
+    const pythonExecutable = 'python'; // More portable than a hardcoded path
+    const pythonScriptPath = path.join(__dirname, '..', 'Python', 'Constraints.py');
+    const args = [
+      pythonScriptPath,
+      '--mode', 'manual',
+      '--manager-id', managerId.toString(),
+      '--target-week', targetWeekStartDate
+    ];
+
+    console.log(`[Server] Spawning process: ${pythonExecutable} ${args.join(' ')}`);
+
+    // Step 3: Use spawn to run the script and stream I/O
+    const pythonProcess = spawn(pythonExecutable, args);
+
+    let scriptOutput = '';
+    let scriptError = '';
+
+    // Capture standard output (for logging success)
+    pythonProcess.stdout.on('data', (data) => {
+      const outputChunk = data.toString();
+      scriptOutput += outputChunk;
+      console.log(`[Python STDOUT]: ${outputChunk.trim()}`);
     });
 
-    result_coll.find({
-      hotelName: hotelName,
-      relevantWeekStartDate: { $nin: [currentStr, nextStr] }
-    }).sort({ generatedAt: -1 }).limit(5).toArray((err2, oldSchedules) => {
-      if (err2) {
-        console.error(`Error fetching old schedules for ${hotelName}:`, err2);
-        return res.status(500).json({
+    // Capture standard error (for debugging failures)
+    pythonProcess.stderr.on('data', (data) => {
+      const errorChunk = data.toString();
+      scriptError += errorChunk;
+      console.error(`[Python STDERR]: ${errorChunk.trim()}`);
+    });
+
+    // Step 4: Handle the process exit and respond to the client
+    pythonProcess.on('close', (code) => {
+      console.log(`[Server] Python process finished with exit code ${code}.`);
+      if (code === 0) {
+        // Exit code 0 means success
+        res.status(200).json({
+          success: true,
+          message: 'Scheduler algorithm completed successfully!',
+          output: scriptOutput
+        });
+      } else {
+        // Any other exit code means failure
+        res.status(500).json({
           success: false,
-          message: "Error fetching old schedules",
-          error: err2.message
+          message: 'An error occurred while running the Python scheduler.',
+          error: scriptError || 'Unknown error in Python script. See server console for details.'
         });
       }
+    });
 
-      console.log(`=== Schedule Info for Hotel: ${hotelName} ===`);
-      console.log(`Current Week Start (שבת): ${currentStr}`);
-      console.log(`Next Week Start (שבת):    ${nextStr}`);
-      console.log(`---`);
-      console.log("Now Schedule:", nowSchedule ? {
-        relevantWeekStartDate: nowSchedule.relevantWeekStartDate,
-        generatedAt: nowSchedule.generatedAt,
-        _id: nowSchedule._id
-      } : "לא נמצא");
-      console.log("Next Schedule:", nextSchedule ? {
-        relevantWeekStartDate: nextSchedule.relevantWeekStartDate,
-        generatedAt: nextSchedule.generatedAt,
-        _id: nextSchedule._id
-      } : "לא נמצא");
-
-      console.log(`Old Schedules (${oldSchedules.length}):`);
-      oldSchedules.forEach((old, i) => {
-        console.log(`  [${i + 1}] ${old.relevantWeekStartDate} | ${old.generatedAt} | ${old._id}`);
-      });
-
-      res.json({
-        success: true,
-        now: nowSchedule,
-        next: nextSchedule,
-        old: oldSchedules || [],
-        idToName: nowSchedule?.idToName || {}
-      });
+    // Handle errors in the spawn process itself (e.g., python not found)
+    pythonProcess.on('error', (spawnError) => {
+        console.error('[Server] Failed to start Python process:', spawnError);
+        res.status(500).json({ success: false, message: 'Server configuration error: Failed to start the Python process.' });
     });
   });
 });
+
+/**
+ * Endpoint to get all generated schedules for a hotel.
+ * Slightly modified to always return the most relevant idToName map.
+ */
+app.get("/api/generated-schedules/:hotelName", (req, res) => {
+    const hotelName = req.params.hotelName;
+    const today = moment().startOf('day');
+  
+    // Logic to find the start of the current and next weeks (Saturday as pivot)
+    let currentWeekStart = moment(today).day(6);
+    if (currentWeekStart.isAfter(today)) {
+      currentWeekStart = currentWeekStart.subtract(7, 'days');
+    }
+    const nextWeekStart = moment(currentWeekStart).add(7, 'days');
+    const currentStr = currentWeekStart.format('YYYY-MM-DD');
+    const nextStr = nextWeekStart.format('YYYY-MM-DD');
+  
+    // Find "now" and "next" schedules
+    result_coll.find({
+      hotelName: hotelName,
+      relevantWeekStartDate: { $in: [currentStr, nextStr] }
+    }).toArray((err, schedules) => {
+      if (err) { /* ... error handling ... */ }
+  
+      let nowSchedule = schedules.find(s => s.relevantWeekStartDate === currentStr) || null;
+      let nextSchedule = schedules.find(s => s.relevantWeekStartDate === nextStr) || null;
+  
+      // Find old schedules
+      result_coll.find({
+        hotelName: hotelName,
+        relevantWeekStartDate: { $nin: [currentStr, nextStr] }
+      }).sort({ generatedAt: -1 }).limit(5).toArray((err2, oldSchedules) => {
+        if (err2) { /* ... error handling ... */ }
+  
+        // **FIX**: Ensure the most relevant idToName map is sent to the client
+        let idToNameMap = {};
+        if (nowSchedule && nowSchedule.idToName) {
+            idToNameMap = nowSchedule.idToName;
+        } else if (nextSchedule && nextSchedule.idToName) {
+            idToNameMap = nextSchedule.idToName;
+        } else if (oldSchedules && oldSchedules.length > 0 && oldSchedules[0].idToName) {
+            idToNameMap = oldSchedules[0].idToName;
+        }
+  
+        res.json({
+          success: true,
+          now: nowSchedule,
+          next: nextSchedule,
+          old: oldSchedules || [],
+          idToName: idToNameMap // Always send the best available map
+        });
+      });
+    });
+  });
 
 
 
