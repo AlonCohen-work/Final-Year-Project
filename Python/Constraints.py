@@ -334,7 +334,7 @@ def main(previous_week_schedule_data=None, run_for_manager_id=None, target_week_
             }
 
             db["result"].replace_one(
-                {"hotelName": hotel_name, "relevantWeekStartDate": target_week_start_date_str},
+                {"hotelName": hotel_name, "relevantWeekStartDate": relevant_week_start_date_str_plus1},
                 result_doc,
                 upsert=True
             )
