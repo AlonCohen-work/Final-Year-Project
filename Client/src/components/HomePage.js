@@ -8,7 +8,7 @@ import Employee_Request from "../images/iconapp-Photo.png";
 
 const HomePage = () => {
   const [user, setUser] = useState(null);
-  const [nowWarnings, setNowWarnings] = useState([]);
+  const [newWarnings, setNewWarnings] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [pauseScroll, setPauseScroll] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState("");
@@ -40,10 +40,10 @@ const HomePage = () => {
       .then((data) => {
         console.log("📦 Fetched schedule data:", data);
 
-        const nowNotes = data.now?.notes || [];
+        const newNotes = data.next?.notes || [];
    
 
-        console.log("🟢 Now notes count:", nowNotes.length);
+        console.log("🟢 New notes count:", newNotes.length);
   
 
         const processNotes = (notes, label) => {
@@ -90,10 +90,10 @@ const HomePage = () => {
           return [];
         };
 
-        const processedNow = processNotes(nowNotes, "Now");
+        const processedNew = processNotes(newNotes, "New");
     
 
-        setNowWarnings(processedNow);
+        setNewWarnings(processedNew);
 
       })
       .catch((err) => {
@@ -157,19 +157,19 @@ const HomePage = () => {
     <div className="homepage">
       <h1>Welcome, {user ? user.name : "Guest"}!</h1>
 
-      {(nowWarnings.length > 0 ) && (
+      {(newWarnings.length > 0 ) && (
   <div className="warning-banner">
     <strong>
       <span role="img" aria-label="Warning">⚠️</span> Partial schedule issues:
     </strong>
 
-    {nowWarnings.length > 0 && (
+    {newWarnings.length > 0 && (
       <>
         <h4> Problems this week :</h4>
         <ul>
-          {nowWarnings.map((i, idx) => {
+          {newWarnings.map((i, idx) => {
             const { day, shift } = parseShift(i.shift);
-            return <li key={`now-${idx}`}>{day} — {shift} — {i.position}</li>;
+            return <li key={`new-${idx}`}>{day} — {shift} — {i.position}</li>;
           })}
         </ul>
       </>

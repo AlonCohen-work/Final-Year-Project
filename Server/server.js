@@ -320,7 +320,6 @@ app.get("/api/generated-schedules/:hotelName", (req, res) => {
       }
       
       // שלב 4: מציאת הסידור הנוכחי והבא מתוך התוצאות, על סמך תאריכי יום ראשון
-      let nowSchedule = schedules.find(s => s.relevantWeekStartDate === currentWeekDbDate) || null;
       let nextSchedule = schedules.find(s => s.relevantWeekStartDate === nextWeekDbDate) || null;
   
       // שלב 5: חיפוש אחר סידורים ישנים יותר
@@ -337,9 +336,7 @@ app.get("/api/generated-schedules/:hotelName", (req, res) => {
   
         // שלב 6: בחירת מפת השמות (idToName) הרלוונטית ביותר להצגה בצד הלקוח
         let idToNameMap = {};
-        if (nowSchedule && nowSchedule.idToName) {
-            idToNameMap = nowSchedule.idToName;
-        } else if (nextSchedule && nextSchedule.idToName) {
+        if (nextSchedule && nextSchedule.idToName) {
             idToNameMap = nextSchedule.idToName;
         } else if (oldSchedules && oldSchedules.length > 0 && oldSchedules[0].idToName) {
             // אם אין סידור נוכחי או עתידי, ניקח את המפה מהסידור הישן האחרון
@@ -349,7 +346,6 @@ app.get("/api/generated-schedules/:hotelName", (req, res) => {
         // שלב 7: שליחת התשובה המלאה לצד הלקוח
         res.json({
           success: true,
-          now: nowSchedule,
           next: nextSchedule,
           old: oldSchedules || [],
           idToName: idToNameMap 
@@ -363,7 +359,7 @@ app.get("/api/generated-schedules/:hotelName", (req, res) => {
 app.get("/schedule-result/:hotelName", (req, res) => {
   const hotelName = req.params.hotelName;
 
-  result_coll.findOne({ hotelName: hotelName, Week: "Now" }, (err, resultDoc) => {
+  result_coll.findOne({ hotelName: hotelName, Week: "New" }, (err, resultDoc) => {
     if (err) {
       console.error("❌ Error fetching result:", err);
       return res.status(500).json({ message: "Database error" });
