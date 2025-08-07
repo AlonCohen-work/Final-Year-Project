@@ -296,53 +296,67 @@ app.get("/api/generated-schedules/:hotelName", (req, res) => {
     const hotelName = req.params.hotelName;
     const today = moment().startOf('day');
   
-    // Logic to find the start of the current and next weeks (Saturday as pivot)
-    let currentWeekStart = moment(today).day(6);
+    // שלב 1: הלוגיקה למציאת "ציר" השבוע (שבת) נשארת זהה
+    let currentWeekStart = moment(today).day(6); // 6 = Saturday
     if (currentWeekStart.isAfter(today)) {
       currentWeekStart = currentWeekStart.subtract(7, 'days');
     }
     const nextWeekStart = moment(currentWeekStart).add(7, 'days');
-    const currentStr = currentWeekStart.format('YYYY-MM-DD');
-    const nextStr = nextWeekStart.format('YYYY-MM-DD');
+    
+    // שלב 2: יצירת התאריכים הנכונים לחיפוש במסד הנתונים (ימי ראשון)
+    // מוסיפים יום אחד לתאריכי השבת שחישבנו
+    const currentWeekDbDate = moment(currentWeekStart).add(1, 'days').format('YYYY-MM-DD');
+    const nextWeekDbDate = moment(nextWeekStart).add(1, 'days').format('YYYY-MM-DD');
   
-    // Find "now" and "next" schedules
+    // שלב 3: שימוש בתאריכי יום ראשון בחיפוש אחר הסידורים הנוכחי והבא
     result_coll.find({
       hotelName: hotelName,
-      relevantWeekStartDate: { $in: [currentStr, nextStr] }
+      relevantWeekStartDate: { $in: [currentWeekDbDate, nextWeekDbDate] }
     }).toArray((err, schedules) => {
-      if (err) { /* ... error handling ... */ }
+      // טיפול בשגיאת מסד נתונים ראשונית
+      if (err) {
+        console.error("DB error fetching current/next schedules:", err);
+        return res.status(500).json({ success: false, message: "Database error while fetching schedules." });
+      }
+      
+      // שלב 4: מציאת הסידור הנוכחי והבא מתוך התוצאות, על סמך תאריכי יום ראשון
+      let nowSchedule = schedules.find(s => s.relevantWeekStartDate === currentWeekDbDate) || null;
+      let nextSchedule = schedules.find(s => s.relevantWeekStartDate === nextWeekDbDate) || null;
   
-      let nowSchedule = schedules.find(s => s.relevantWeekStartDate === currentStr) || null;
-      let nextSchedule = schedules.find(s => s.relevantWeekStartDate === nextStr) || null;
-  
-      // Find old schedules
+      // שלב 5: חיפוש אחר סידורים ישנים יותר
+      // החיפוש לא כולל את התאריכים של הסידור הנוכחי והבא שכבר מצאנו
       result_coll.find({
         hotelName: hotelName,
-        relevantWeekStartDate: { $nin: [currentStr, nextStr] }
+        relevantWeekStartDate: { $nin: [currentWeekDbDate, nextWeekDbDate] }
       }).sort({ generatedAt: -1 }).limit(5).toArray((err2, oldSchedules) => {
-        if (err2) { /* ... error handling ... */ }
+        // טיפול בשגיאה בחיפוש השני
+        if (err2) {
+          console.error("DB error fetching old schedules:", err2);
+          return res.status(500).json({ success: false, message: "Database error while fetching old schedules." });
+        }
   
-        // **FIX**: Ensure the most relevant idToName map is sent to the client
+        // שלב 6: בחירת מפת השמות (idToName) הרלוונטית ביותר להצגה בצד הלקוח
         let idToNameMap = {};
         if (nowSchedule && nowSchedule.idToName) {
             idToNameMap = nowSchedule.idToName;
         } else if (nextSchedule && nextSchedule.idToName) {
             idToNameMap = nextSchedule.idToName;
         } else if (oldSchedules && oldSchedules.length > 0 && oldSchedules[0].idToName) {
+            // אם אין סידור נוכחי או עתידי, ניקח את המפה מהסידור הישן האחרון
             idToNameMap = oldSchedules[0].idToName;
         }
   
+        // שלב 7: שליחת התשובה המלאה לצד הלקוח
         res.json({
           success: true,
           now: nowSchedule,
           next: nextSchedule,
           old: oldSchedules || [],
-          idToName: idToNameMap // Always send the best available map
+          idToName: idToNameMap 
         });
       });
     });
   });
-
 
 
 // Route to get current problematic schedule result for a hotel
